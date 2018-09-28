@@ -56,7 +56,7 @@ int main () {
 
     // add a formula to other cell
     t = lookat(p->cur_sh, 1, 0);
-    t->formula= "'sales 1'!A0 + 'sales 2'+ A0 + 2 + 1";
+    t->formula= "'sales 1'!A0 + 'sales 2'!A0 + 2 + 1";
     char * ptr = t->formula;
     t->exp=getAST(ptr, p);
     t->flag |= VAL | RP_FORMULA;
