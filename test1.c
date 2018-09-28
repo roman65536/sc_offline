@@ -47,7 +47,7 @@ int main () {
 
     // create a sheet
     struct Sheet * sh1 = new_sheet(p, "sales 2");
-    growtbl(sh, GROWNEW, 0, 0);
+    growtbl(sh1, GROWNEW, 0, 0);
     p->cur_sh = sh1;
     // set a value of a cell
     struct Ent * tl = lookat(p->cur_sh, 0, 0);
