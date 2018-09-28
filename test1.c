@@ -67,10 +67,7 @@ int main () {
 
     // show results
     struct Ent * e1 = lookat(p->cur_sh, 1, 0);
-    printf("value A0: %f !!\n", e1->val);
-
-    struct Ent * e2 = lookat(p->cur_sh, 1, 0);
-    printf("value A1: %f !!\n", e2->val);
+    printf("result: %f !!\n", e1->val);
 
     p->open=0;
     return 0;
