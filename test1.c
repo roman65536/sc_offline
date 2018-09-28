@@ -58,12 +58,13 @@ int main () {
     t = lookat(p->cur_sh, 1, 0);
     t->formula= "'sales 1'!A0 + 'sales 2'!A0 + 2 + 1";
     char * ptr = t->formula;
-    t->exp=getAST(ptr, p);
+    t->exp = getAST(ptr, p);
     t->flag |= VAL | RP_FORMULA;
-    t->val=t->exp->value;
+    t->val = t->exp->value;
 
     // calc
     recalc(p);
+    printf("result: %f !!\n", t->val);
 
     // show results
     struct Ent * e1 = lookat(p->cur_sh, 1, 0);
