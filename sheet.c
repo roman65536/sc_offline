@@ -1,11 +1,10 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-#include "rpsc.h"
+#include <ctype.h>
 
-// prototypes
-int growtbl(struct Sheet * sh, int rowcol, int toprow, int topcol);
-void checkbounds(struct Sheet *sh, int *rowp, int *colp);
+#include "rpsc.h"
+#include "sheet.h"
 
 struct Ent * lookat(struct Sheet * sh, int row, int col) {
     register struct Ent ***tbl=sh->tbl;

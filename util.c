@@ -2,6 +2,7 @@
 #include <string.h>
 #include <malloc.h>
 #include "rpsc.h"
+#include "sheet.h"
 
 #define	isBlank(ch)	((ch) == ',') 
 
