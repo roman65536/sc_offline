@@ -51,6 +51,44 @@ struct Sheet * Search_sheet(struct roman *doc, char *name) {
     return 0;
 }
 
+int convert(int * col, int * row, char * s, int size) {
+    int val, i;
+    int temp;
+    int val2;
+
+    temp = 0;
+    val = 0;
+    val2=0;
+
+    for (i=0; (i<size) && (s[i] != '\0'); i++) {
+        if (((s[i]<='Z') && (s[i]>='A')) || ((s[i]<='z') && (s[i]>='a'))) {
+            if (islower(s[i]))
+                s[i] = toupper(s[i]);
+            val = (temp*26) + ( s[i]-'A');
+            temp = temp + 1;
+            *col=val;
+        }
+        else if ((s[i]<='9') && (s[i]>='0'))
+        {
+            val2 = (val2*10) + (s[i]-'0');
+            *row=val2;
+        }
+    }
+    return (val);
+}
+
+int coltoa(int col, char * rname) {
+    register char * p = rname;
+
+    if (col > 25) {
+        *p++ = col/26 + 'A' - 1;
+        col %= 26;
+    }
+    *p++ = col+'A';
+    *p = '\0';
+    return 0;
+}
+
 
 
 ////// TO REVIEW

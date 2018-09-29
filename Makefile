@@ -1,12 +1,12 @@
 # Makefile
 SHELL = /bin/bash
-FILES   = luasc3.c
+FILES   = lua.c
 CC      = gcc
 CFLAGS  = -g -DSYSV3 -pg -fPIC -DCOMPAT_MODULE
 
-test1:    xlsx.o expr.o Parser.o Lexer.o sheet.o calc.o function.o luasc3.o util.o test1.o rpsc.h
-	$(CC) $(CFLAGS) luasc3.o xlsx.o expr.o Parser.o Lexer.o sheet.o calc.o function.o util.o test1.o -lm `pkg-config --libs libxml-2.0 libzip lua5.2` -o test1
-#	$(CC) -fPIC -shared -o sc.so luasc3.o
+test1:    xlsx.o expr.o Parser.o Lexer.o sheet.o calc.o function.o lua.o util.o test1.o rpsc.h
+	$(CC) $(CFLAGS) lua.o xlsx.o expr.o Parser.o Lexer.o sheet.o calc.o function.o util.o test1.o -lm `pkg-config --libs libxml-2.0 libzip lua5.2` -o test1
+#	$(CC) -fPIC -shared -o sc.so lua.o
 
 Lexer.c:	Lexer.l
 	flex Lexer.l

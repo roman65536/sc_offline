@@ -3,6 +3,34 @@
 #include "Parser.h"
 #include "Lexer.h"
 
+SExpression * getAST(const char * expr, struct roman * p) {
+
+    SExpression *expression = 0;
+
+    yyscan_t scanner;
+    YY_BUFFER_STATE state;
+
+    if (yylex_init(&scanner)) {
+        // couldn't initialize
+        return NULL;
+    }
+
+    //printf("PARSING: [%s]\n",expr);
+    state = yy_scan_string(expr, scanner);
+
+    if (yyparse(&expression, scanner,p)) {
+        // error parsing
+        return NULL;
+    }
+
+    yy_delete_buffer(state, scanner);
+
+    yylex_destroy(scanner);
+
+    return expression;
+}
+
+
 double eval(struct roman *pp, SExpression *s, struct Ent *p) {
     double (*func)(struct roman *,int, char **);
     double (*funct)(double);

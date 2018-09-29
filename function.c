@@ -5,6 +5,30 @@
 #include "Parser.h"
 #include "Lexer.h"
 
+struct Functions *first_func=0;
+
+void add_function(char *name, double (*funct)(struct roman *, int,char **), int type) {
+
+    struct Functions *func=(struct Functions *) malloc(sizeof(struct Functions));
+    func->name = name;
+    func->func=funct;
+    func->type=type;
+    func->next=first_func;
+    first_func=func;
+
+}
+
+void * search_func(char *name, int *type) {
+    struct Functions *func;
+
+    for(func=first_func; func != 0; func=func->next)
+        if(strcmp(name,func->name) == 0){
+            *type=func->type;
+            return (void *) func->func;
+        }
+    return (void *)0;
+}
+
 double do_sum(struct roman *p, int argn, char ** argc) {
     double sum=0.0;
     int row1, col1, row2, col2;
