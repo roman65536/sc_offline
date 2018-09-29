@@ -5,8 +5,8 @@
  */
 
 
-#define YY_DECL int yylex \
-               (YYSTYPE * yylval_param , yyscan_t yyscanner,struct roman *p)
+#define YY_DECL int yylex (YYSTYPE * yylval_param, yyscan_t yyscanner, struct roman *p)
+
 #include "expr.h"
 #include "rpsc.h"
 #include "Parser.h"
@@ -15,9 +15,7 @@
 #include <ctype.h>
 
 
-
 //extern struct Sheet *cur_sh;
-
 
 %}
 
@@ -43,23 +41,24 @@ WS          [ \r\n\t]*
 %%
 
 {WS}        { /* Skip blanks. */ }
-{NUMBER}|([0-9]*[.][0-9]+)       { 
-    //sscanf(yytext, "%lf", &yylval->value); 
+
+{NUMBER}|([0-9]*[.][0-9]+)       {
+    //sscanf(yytext, "%lf", &yylval->value);
     yylval->value=atof(yytext);
-    //printf("Found NUMBER %s %lg\n",yytext,yylval->value); 
+    //printf("Found NUMBER %s %lg\n",yytext,yylval->value);
     return TOKEN_NUMBER; }
 
 {IF}        { return TOKEN_IF; }
 
 \".*\" {
-    yylval->dstr = (char*)calloc(strlen(yytext)-1, sizeof(char));
+    yylval->dstr = (char *) calloc(strlen(yytext)-1, sizeof(char));
     strncpy(yylval->dstr, &yytext[1], strlen(yytext)-2);
     return TOKEN_DSTRING;
 }
 
 
 [a-zA-Z]{1,2}[0-9]+:[a-zA-Z]{1,2}[0-9]+ {
-    yylval->sym=strdup(yytext);
+    yylval->sym = strdup(yytext);
     return TOKEN_TEXT;
 }
 
@@ -71,11 +70,11 @@ WS          [ \r\n\t]*
     int col;
     int ret;
 
-    len=strlen(yytext);
-    convert(&col,&tmpi,yytext,len);
+    len = strlen(yytext);
+    convert(&col, &tmpi, yytext, len);
 
     //printf("FOUND tbl ref. %d %d -> %d %s\n",len,col,tmpi,yytext);
-    yylval->ent=lookat(p->cur_sh,tmpi,col);
+    yylval->ent = lookat(p->cur_sh, tmpi, col);
     //	yylval->ent->col=col;
     //	yylval->ent->row=tmpi;
     return TOKEN_TBL;
@@ -93,11 +92,11 @@ WS          [ \r\n\t]*
     sscanf(yytext,"%32[a-z|A-Z|0-9]!%s",tbl,ref);
     printf("FOUND tbl ref %s %s %s\n", yytext, tbl, ref);
 
-    len=strlen(ref);
+    len = strlen(ref);
     convert(&col,&tmpi,ref,len);
 
     printf("FOUND tbl ref. %d %d -> %d %s\n", len, col, tmpi, ref);
-    yylval->ent=lookat(Search_sheet(p,tbl), tmpi, col);
+    yylval->ent = lookat(Search_sheet(p,tbl), tmpi, col);
 
     return TOKEN_TBL;
 }
@@ -118,7 +117,7 @@ WS          [ \r\n\t]*
     convert(&col, &tmpi, ref, len);
 
     printf("FOUND tbl ref. %d %d -> %d %s\n",len,col,tmpi,ref);
-    yylval->ent=lookat(Search_sheet(p,tbl),tmpi,col);
+    yylval->ent = lookat(Search_sheet(p,tbl),tmpi,col);
 
     return TOKEN_TBL;
 }
@@ -150,5 +149,5 @@ WS          [ \r\n\t]*
 
 %%
 int yyerror(void *p1, void *p2 , void *p3, const char *msg) {
-    fprintf(stderr,"Error:%s\n",msg); return 0;
+    fprintf(stderr,"YY Error: %s\n",msg); return 0;
 }

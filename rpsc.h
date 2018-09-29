@@ -28,19 +28,6 @@ struct Sheet {
 };
 
 
-#define FUNC_RANGE      1   /* Range Function */
-#define FUNC_MATH1      2   /* Math function 1 arg */
-#define FUNC_MATH2      3   /* Math function 2 arg */
-#define FUNC_STR        4   /* String function */
-
-struct Functions {
-    const char * name;
-    double (*func)(int argc, const char ** argv);
-    int type;
-    struct Functions * next;
-};
-
-
 
 struct roman
 {
@@ -51,6 +38,18 @@ struct roman
     struct Sheet * cur_sh;
     struct Ent ** cache;
     int cache_nr;
+};
+
+
+#define FUNC_RANGE      1   /* Range Function */
+#define FUNC_MATH1      2   /* Math function 1 arg */
+#define FUNC_MATH2      3   /* Math function 2 arg */
+#define FUNC_STR        4   /* String function */
+struct Functions {
+    const char * name;
+    double (*func) (struct roman * p, int argc, const char ** argv);
+    int type;
+    struct Functions * next;
 };
 
 
@@ -120,7 +119,7 @@ do { \
 
 
 
-void add_function(char * name, double (*funct) (int, char **), int type);
+void add_function(char * name, double (*funct) (struct roman *, int, char **), int type);
 void * search_func(char * name,int * type);
 
 

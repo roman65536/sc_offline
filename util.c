@@ -241,7 +241,7 @@ BOOL makeArgs(const char * cmd, int * retArgc, const char *** retArgv) {
 
 struct Functions *first_func=0;
 
-void add_function(char *name, double (*funct)(int,char **), int type) {
+void add_function(char *name, double (*funct)(struct roman *, int,char **), int type) {
 
     struct Functions *func=(struct Functions *) malloc(sizeof(struct Functions));
     func->name = name;

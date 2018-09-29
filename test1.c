@@ -66,8 +66,9 @@ int main () {
     recalc(p);
 
     // show results
-    struct Ent * e1 = lookat(sh1, 1, 0);
-    printf("result: %f !!\n", e1->val);
+    //struct Ent * e1 = lookat(sh1, 1, 0);
+    struct Ent * e1 = lookat(Search_sheet(p, "sales 2"), 1, 0);
+    printf("result :: %f !!\n", e1->val);
 
     p->open=0;
     return 0;

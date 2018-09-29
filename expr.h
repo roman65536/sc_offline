@@ -21,8 +21,6 @@ typedef enum tagEOperationType
     eENT,
     eSTR,
     eMORE
-
-    
 } EOperationType;
 
 /**
@@ -41,41 +39,13 @@ typedef struct tagSExpression
 } SExpression;
 
 
-struct Symbol 
+struct Symbol
 {
-	char *name;
-	int type;
-	double val;
-	struct Symbol *next;
+    char *name;
+    int type;
+    double val;
+    struct Symbol *next;
 };
-
-
-/*
-struct Ent
-{
-
-        double val;
-        char *label;
-	char *formula;
-        SExpression *enode;
-        short flag;
-	short col;
-	short row;
-};
-
-
-struct Sheet
-{
-	struct Ent ***tbl; 
-	char *name;
-	int col,row;
-	short flags;
-	struct Sheet *next;
-	struct Sheet *prev;
-};
-
-*/
-
 
 
 #define ATBL(tbl, row, col)     (*(tbl + row) + (col))
