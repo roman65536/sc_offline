@@ -28,6 +28,13 @@ int main () {
     // this could serve to load default functions (AVG, COUNT) from a lua script
     lua_State *L;
     L = luaL_newstate();
+    int a;
+
+#ifdef OLD
+    printf("OLD\n");
+#else
+    printf("NEW\n");
+#endif
 
     struct roman * p = (struct roman *) malloc(sizeof(struct roman));
     p->name=NULL;
@@ -38,7 +45,7 @@ int main () {
 
     // create a sheet
     struct Sheet * sh = new_sheet(p, "sales 1");
-    growtbl(sh, GROWNEW, 0, 0);
+
     p->cur_sh = sh;
     // set a value of a cell
     struct Ent * t = lookat(p->cur_sh, 0, 0);
@@ -47,7 +54,7 @@ int main () {
 
     // create a sheet
     struct Sheet * sh1 = new_sheet(p, "sales 2");
-    growtbl(sh1, GROWNEW, 0, 0);
+
     p->cur_sh = sh1;
     // set a value of a cell
     struct Ent * tl = lookat(p->cur_sh, 0, 0);
@@ -62,13 +69,17 @@ int main () {
     t->flag |= VAL | RP_FORMULA;
     t->val = t->exp->value;
 
+for(a=0;a<1000;a++)
+{
     // calc
     recalc(p);
 
+    tl->val=(double)a;
     // show results
     //struct Ent * e1 = lookat(sh1, 1, 0);
     struct Ent * e1 = lookat(Search_sheet(p, "sales 2"), 1, 0);
     printf("result :: %f !!\n", e1->val);
+ }
 
     p->open=0;
     return 0;
@@ -80,6 +91,7 @@ int main () {
     // this will serve to load with lua default operations
     lua_State *L;
     L = luaL_newstate();
+	int a;
 
     struct roman * p = (struct roman *) malloc(sizeof(struct roman));
     p->name=NULL;
@@ -175,7 +187,7 @@ int main () {
     recalc(p);
 
     int r = 4, c = 0;
-    struct Ent ** pp = ATBL(p->cur_sh->tbl, r, c);
+    struct Ent ** pp = ATBL(p->cur_sh,p->cur_sh->tbl, r, c);
 
     struct Ent * e = *pp;
 

@@ -112,7 +112,7 @@ static int l_getnum (lua_State *L) {
     c = lua_tointeger(L, 2);      /* get argument */
     r = lua_tointeger(L, 3);
     // sc_debug("getnum !!");
-    pp = ATBL(d->cur_sh->tbl,r,c);
+    pp = ATBL(d->cur_sh,d->cur_sh->tbl,r,c);
 
     p = *pp;
     if (p == 0) return 0;

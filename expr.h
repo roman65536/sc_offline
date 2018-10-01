@@ -47,8 +47,9 @@ struct Symbol
     struct Symbol *next;
 };
 
-
+/*
 #define ATBL(tbl, row, col)     (*(tbl + row) + (col))
+*/
 
 extern struct Symbol *Symbol_first;
 struct Symbol *create_symbol(char *name);

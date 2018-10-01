@@ -4,7 +4,6 @@
 #include "rpsc.h"
 #include "Parser.h"
 #include "Lexer.h"
-#include "sheet.h"
 
 struct Functions *first_func=0;
 

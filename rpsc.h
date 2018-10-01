@@ -1,5 +1,9 @@
 #include "expr.h"
 
+#define NEW 1
+
+#define HASH_NR   64
+
 struct Ent {
     double val;
     char * label;
@@ -8,6 +12,7 @@ struct Ent {
     short flag;
     short col;
     short row;
+    struct Ent *n_hash;
 };
 
 
@@ -18,6 +23,8 @@ struct Ent {
 
 struct Sheet {
     struct Ent *** tbl;
+    void **hash;
+    int nr_hash;
     char * name;
     int col, row;
     int ccol , crow;
@@ -27,7 +34,7 @@ struct Sheet {
     struct Sheet * prev;
 };
 
-
+#define HASH(row,col) (((row*65537)+col) % HASH_NR)
 
 struct roman
 {
@@ -53,7 +60,13 @@ struct Functions {
 };
 
 
-#define ATBL(tbl, row, col)     (*(tbl + row) + (col))
+#ifdef OLD
+#define ATBL(sh, tbl, row, col)     (*(tbl + row) + (col))
+#else
+#define ATBL(sh, tbl, row, col)     atbl(sh,tbl,row,col)
+struct Ent ** atbl(struct Sheet *sh, struct Ent ***tbl, int row, int col) ;
+#endif
+
 
 #define GROWNEW         1       /* first time table */
 #define GROWROW         2       /* add rows */

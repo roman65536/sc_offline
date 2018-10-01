@@ -2,7 +2,6 @@
 #include <string.h>
 #include <malloc.h>
 #include "rpsc.h"
-#include "sheet.h"
 
 #define	isBlank(ch)	((ch) == ',') 
 
@@ -254,7 +253,7 @@ void export(struct roman * p, char * start, char * end, char * start_col, char *
         for (y=0;y<p->cur_sh->row;y++) {
             coltoa(y,tmp);
             if (start_row != 0) printf("%s %s",start_row,tmp);
-            pp = ATBL(p->cur_sh->tbl,y,x);
+            pp = ATBL(p->cur_sh,p->cur_sh->tbl,y,x);
             if (*pp != 0) {
                 if (((*pp)->flag & RP_FORMULA) == RP_FORMULA) {
                     char *ptr=(*pp)->formula;

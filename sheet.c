@@ -9,10 +9,11 @@
 struct Ent * lookat(struct Sheet * sh, int row, int col) {
     register struct Ent ***tbl=sh->tbl;
     register struct Ent **pp;
-
+    struct Ent *tmp;
+#if OLD
     checkbounds(sh, &row, &col);
-    pp = ATBL(tbl, row, col);
-    if (*pp == NULL) {
+    pp = ATBL(sh , tbl, row, col);
+     if (*pp == NULL) {
         *pp = (struct Ent *) calloc(1, (unsigned) sizeof(struct Ent));
         if (row > sh->row) sh->row = row;
         if (col > sh->col) sh->col = col;
@@ -24,7 +25,39 @@ struct Ent * lookat(struct Sheet * sh, int row, int col) {
         (*pp)->val = (double) 0.0;
     }
     return (*pp);
+#else
+    tmp=sh->hash[HASH(row,col)];
+    for(;tmp!=0;tmp=(tmp)->n_hash)
+    if(( (tmp)->row== row) && ((tmp)->col == col))
+        return (tmp);
+    tmp = (struct Ent * ) calloc(1, (unsigned) sizeof(struct Ent));
+    if (row > sh->row) sh->row = row;
+    if (col > sh->col) sh->col = col;
+    (tmp)->label = (char *)0;
+    (tmp)->formula = (char *)0;
+    (tmp)->flag=0;
+    (tmp)->row=row;
+    (tmp)->col=col;
+    (tmp)->val=(double)0.0;
+    (tmp)->n_hash=sh->hash[HASH(row,col)];
+    sh->hash[HASH(row,col)]=(tmp);
+    return (tmp);
+#endif
+
 }
+
+#if NEW
+struct Ent ** atbl(struct Sheet *sh, struct Ent ***tbl, int row, int col) {
+    static struct Ent * tmp;
+    long a=HASH(row,col);
+    tmp=sh->hash[a];
+    for(;tmp!=0;tmp=(tmp)->n_hash)
+    if(( (tmp)->row== row) && ((tmp)->col == col))
+        return (&tmp);
+
+    return ((struct Ent *) 0);
+}
+#endif
 
 struct Sheet * new_sheet(struct roman * doc, char * name) {
     struct Sheet * sh;
@@ -32,9 +65,14 @@ struct Sheet * new_sheet(struct roman * doc, char * name) {
     INSERT(sh, (doc->first_sh), (doc->last_sh), next, prev);
     sh->name = strdup(name);
     sh->tbl = 0;
+    sh->hash= (void *) calloc(HASH_NR,sizeof(void *));
+    sh->nr_hash=HASH_NR;
     sh->maxcol = sh->maxrow = 0;
     sh->ccol = 16;
     sh->crow = 32768;
+#ifdef OLD
+    growtbl(sh, GROWNEW, 0, 0);
+#endif
 
     return sh;
 }
@@ -43,7 +81,7 @@ struct Sheet * Search_sheet(struct roman *doc, char *name) {
     struct Sheet *sh;
 
     for(sh=doc->first_sh; sh != 0; sh=sh->next) {
-        printf("sheet: %s %s\n", name, sh->name);
+        //printf("sheet: %s %s\n", name, sh->name);
         if(! strcmp(name,sh->name) ) return sh;
     }
 
@@ -236,10 +274,10 @@ for (i = 0; i < sh->crow; i++) {
         //	    error(nowider);
         return(FALSE);
     }
-    for (nullit = ATBL(sh->tbl, i, sh->ccol), cnt = 0;
+    for (nullit = ATBL(sh,sh->tbl, i, sh->ccol), cnt = 0;
             cnt < newcols-sh->ccol; cnt++, nullit++)
         *nullit = (struct Ent *)NULL;
-    memset((char *)ATBL(sh->tbl,i,sh->ccol), 0,
+    memset((char *)ATBL(sh,sh->tbl,i,sh->ccol), 0,
             (newcols-sh->ccol)*sizeof(struct ent **));
 
 }
