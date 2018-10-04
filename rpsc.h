@@ -45,6 +45,8 @@ struct roman
     struct Sheet * cur_sh;
     struct Ent ** cache;
     int cache_nr;
+    int id; //session_id
+    struct roman * next; // to chain to other roman structs..
 };
 
 
