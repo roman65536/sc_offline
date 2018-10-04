@@ -6,6 +6,37 @@
 #include "rpsc.h"
 #include "sheet.h"
 
+struct Sheet * new_sheet(struct roman * doc, char * name) {
+    struct Sheet * sh;
+    sh = (struct Sheet *) calloc(1, sizeof(struct Sheet));
+    INSERT(sh, (doc->first_sh), (doc->last_sh), next, prev);
+    sh->name = strdup(name);
+    sh->tbl = 0;
+    sh->hash= (void *) calloc(HASH_NR,sizeof(void *));
+    sh->nr_hash=HASH_NR;
+    sh->maxcol = sh->maxrow = 0;
+    sh->ccol = 16;
+    sh->crow = 32768;
+#ifdef OLD
+    growtbl(sh, GROWNEW, 0, 0);
+#endif
+
+    return sh;
+}
+
+struct Sheet * Search_sheet(struct roman *doc, char *name) {
+    struct Sheet *sh;
+
+    for(sh=doc->first_sh; sh != 0; sh=sh->next) {
+        //printf("sheet: %s %s\n", name, sh->name);
+        if(! strcmp(name,sh->name) ) return sh;
+    }
+
+    return 0;
+}
+
+//TODO remove_sheet. both with OLD and NEW
+
 struct Ent * lookat(struct Sheet * sh, int row, int col) {
     register struct Ent ***tbl=sh->tbl;
     register struct Ent **pp;
@@ -59,34 +90,18 @@ struct Ent ** atbl(struct Sheet *sh, struct Ent ***tbl, int row, int col) {
 }
 #endif
 
-struct Sheet * new_sheet(struct roman * doc, char * name) {
-    struct Sheet * sh;
-    sh = (struct Sheet *) calloc(1, sizeof(struct Sheet));
-    INSERT(sh, (doc->first_sh), (doc->last_sh), next, prev);
-    sh->name = strdup(name);
-    sh->tbl = 0;
-    sh->hash= (void *) calloc(HASH_NR,sizeof(void *));
-    sh->nr_hash=HASH_NR;
-    sh->maxcol = sh->maxrow = 0;
-    sh->ccol = 16;
-    sh->crow = 32768;
-#ifdef OLD
-    growtbl(sh, GROWNEW, 0, 0);
-#endif
+int coltoa(int col, char * rname) {
+    register char * p = rname;
 
-    return sh;
-}
-
-struct Sheet * Search_sheet(struct roman *doc, char *name) {
-    struct Sheet *sh;
-
-    for(sh=doc->first_sh; sh != 0; sh=sh->next) {
-        //printf("sheet: %s %s\n", name, sh->name);
-        if(! strcmp(name,sh->name) ) return sh;
+    if (col > 25) {
+        *p++ = col/26 + 'A' - 1;
+        col %= 26;
     }
-
+    *p++ = col+'A';
+    *p = '\0';
     return 0;
 }
+
 
 int convert(int * col, int * row, char * s, int size) {
     int val, i;
@@ -113,19 +128,6 @@ int convert(int * col, int * row, char * s, int size) {
     }
     return (val);
 }
-
-int coltoa(int col, char * rname) {
-    register char * p = rname;
-
-    if (col > 25) {
-        *p++ = col/26 + 'A' - 1;
-        col %= 26;
-    }
-    *p++ = col+'A';
-    *p = '\0';
-    return 0;
-}
-
 
 
 ////// TO REVIEW

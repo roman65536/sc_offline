@@ -5,10 +5,13 @@
 #include <netinet/in.h>
 #include <msgpack.h>
 
+#include "session.h"
+
 #define PORT 1234
 #define MAXCLIENTS 3
 
 void handle(int sock, struct sockaddr_in);
+void process_msg(msgpack_object o);
 
 int main(void) {
 
@@ -92,7 +95,8 @@ void handle(int sock, struct sockaddr_in s) {
         msgpack_object deserialized;
         //msgpack_unpack(sbuf.data, sbuf.size, NULL, &mempool, &deserialized);
         msgpack_unpack(buffer, sizeof(buffer), NULL, &mempool, &deserialized);
-        msgpack_object_print(stdout, deserialized);
+
+        process_msg(deserialized);
 
         msgpack_zone_destroy(&mempool);
         msgpack_sbuffer_destroy(&sbuf);
@@ -103,4 +107,21 @@ void handle(int sock, struct sockaddr_in s) {
         break;
     }
     return;
+}
+
+void process_msg(msgpack_object o) {
+    msgpack_object_print(stdout, o);
+    printf("\n");
+
+    // HANDLE
+    if (o.type == MSGPACK_OBJECT_STR && ! strcmp(o.via.str.ptr, "HELO")) {
+        printf("got: %s\n", o);
+        // create new session
+        printf("created session #: %d\n", create_session());
+
+    } else if (o.type == MSGPACK_OBJECT_ARRAY) {
+        printf("size: %d\n", o.via.array.size);
+        printf("obj1: %d\n", (int) o.via.array.ptr[0].via.u64);
+        printf("obj2: %s\n", o.via.array.ptr[1]);
+    }
 }

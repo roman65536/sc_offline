@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include "rpsc.h"
+
 #include "session.h"
 
 // create a session
@@ -41,4 +42,3 @@ int close_session (int id) {
     }
     return -1;
 }
-

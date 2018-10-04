@@ -42,10 +42,13 @@ int main() {
     msgpack_sbuffer_init(&sbuf); /* initialize buffer */
     msgpack_packer_init(&pk, &sbuf, msgpack_sbuffer_write); /* initialize packer */
 
-    msgpack_pack_array(&pk, 2);
-    msgpack_pack_int(&pk, 1);
     msgpack_pack_str(&pk, 4);
-    msgpack_pack_str_body(&pk, "HELO", 4);
+    msgpack_pack_str_body(&pk, "HELO", 4); // this requests a new session
+
+    //msgpack_pack_array(&pk, 2);
+    //msgpack_pack_int(&pk, 16);
+    //msgpack_pack_str(&pk, 4);
+    //msgpack_pack_str_body(&pk, "HELO", 4);
 
     send(sock, sbuf.data, sbuf.size, 0 );
 
