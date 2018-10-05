@@ -9,10 +9,9 @@ test1:    lua.o xlsx.o expr.o Parser.o Lexer.o sheet.o calc.o function.o session
 
 server:    session.o lua.o xlsx.o expr.o Parser.o Lexer.o sheet.o calc.o function.o util.o rpsc.h
 	$(CC) $(CFLAGS) lua.o xlsx.o expr.o Parser.o Lexer.o sheet.o calc.o function.o session.o util.o server.c -o server -lmsgpackc -Lmsgpack-c/libmsgpackc.so.2.0.0 -lm `pkg-config --libs libxml-2.0 libzip lua5.2`
-#$(CC) $(CFLAGS) lua.o xlsx.o expr.o Parser.o Lexer.o sheet.o calc.o function.o session.o util.o server.c -static -o server -lmsgpackc -Lmsgpack-c/libmsgpackc.so.2.0.0 -lm `pkg-config --libs libxml-2.0 libzip lua5.2`
 
 client:    lua.o xlsx.o expr.o Parser.o Lexer.o sheet.o calc.o function.o session.o util.o rpsc.h
-	$(CC) $(CFLAGS) client.c -o client -lm `pkg-config --libs libxml-2.0 libzip lua5.2`
+	$(CC) $(CFLAGS) lua.o xlsx.o expr.o Parser.o Lexer.o sheet.o calc.o function.o session.o util.o client.c -o client -lmsgpackc -Lmsgpack-c/libmsgpackc.so.2.0.0 -lm `pkg-config --libs libxml-2.0 libzip lua5.2`
 
 Lexer.c:	Lexer.l
 	flex Lexer.l

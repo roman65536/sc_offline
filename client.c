@@ -8,11 +8,16 @@
 
 #define PORT 1234
 
+msgpack_sbuffer sbuf; /* buffer */
+msgpack_packer pk;    /* packer */
+msgpack_zone mempool;
+
 int main() {
 
     struct sockaddr_in address;
     int sock = 0, valread;
     struct sockaddr_in serv_addr;
+    char buffer[1024] = {0};
 
 
     if ((sock = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
@@ -36,12 +41,21 @@ int main() {
         return -1;
     }
 
-    msgpack_sbuffer sbuf; /* buffer */
-    msgpack_packer pk;    /* packer */
+    valread = read(sock, buffer, 1024);
+     if (valread != -1) {
+         printf("got server inf.: %s\n", buffer);
+         buffer[0]='\0';
+    }
+
 
     msgpack_sbuffer_init(&sbuf); /* initialize buffer */
     msgpack_packer_init(&pk, &sbuf, msgpack_sbuffer_write); /* initialize packer */
 
+    /* deserialize the buffer into msgpack_object instance. */
+    /* deserialized object is valid during the msgpack_zone instance alive. */
+    msgpack_zone_init(&mempool, 1024);
+
+    // pack HELO
     msgpack_pack_str(&pk, 4);
     msgpack_pack_str_body(&pk, "HELO", 4); // this requests a new session
 
@@ -50,7 +64,22 @@ int main() {
     //msgpack_pack_str(&pk, 4);
     //msgpack_pack_str_body(&pk, "HELO", 4);
 
+    // send HELO
     send(sock, sbuf.data, sbuf.size, 0 );
+
+    // get session ID
+    valread = read(sock, buffer, 1024);
+     if (valread != -1) {
+         msgpack_object o;
+
+         //FIXME sizeof(..) may differ on sender and receiver machine
+         msgpack_unpack(buffer, sizeof(buffer), NULL, &mempool, &o);
+
+         printf("got session #: " );
+         msgpack_object_print(stdout, o);
+
+    }
+
 
     msgpack_sbuffer_destroy(&sbuf);
 
