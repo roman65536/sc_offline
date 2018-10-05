@@ -8,11 +8,11 @@ CFLAGS  = -g -DSYSV3 -DNEW  -fPIC -DCOMPAT_MODULE  -fvisibility=default -export-
 test1:    lua.o  expr.o Parser.o Lexer.o sheet.o calc.o function.o session.o util.o test1.o rpsc.h html.so xlsx.so
 	$(CC) $(CFLAGS) lua.o  expr.o Parser.o Lexer.o sheet.o calc.o function.o session.o util.o test1.o plugin.c slab.c -lm `pkg-config --libs libxml-2.0 libzip lua5.2` -o test1
 
-server:    session.o lua.o xlsx.o expr.o Parser.o Lexer.o sheet.o calc.o function.o util.o rpsc.h slab.o
-	$(CC) $(CFLAGS) lua.o xlsx.o expr.o Parser.o Lexer.o sheet.o calc.o function.o session.o util.o server.c slab.c -o server -lmsgpackc -Lmsgpack-c/libmsgpackc.so.2.0.0 -lm `pkg-config --libs libxml-2.0 libzip lua5.2`
+server:    session.o lua.o expr.o Parser.o Lexer.o sheet.o calc.o function.o util.o rpsc.h slab.o
+	$(CC) $(CFLAGS) lua.o expr.o Parser.o Lexer.o sheet.o calc.o function.o session.o util.o server.c slab.c -o server -lmsgpackc -Lmsgpack-c/libmsgpackc.so.2.0.0 -lm `pkg-config --libs libxml-2.0 libzip lua5.2`
 
 client:    lua.o xlsx.o expr.o Parser.o Lexer.o sheet.o calc.o function.o session.o util.o rpsc.h slab.o
-	$(CC) $(CFLAGS) lua.o xlsx.o expr.o Parser.o Lexer.o sheet.o calc.o function.o session.o util.o client.c slab.c -o client -lmsgpackc -Lmsgpack-c/libmsgpackc.so.2.0.0 -lm `pkg-config --libs libxml-2.0 libzip lua5.2`
+	$(CC) $(CFLAGS) lua.o expr.o Parser.o Lexer.o sheet.o calc.o function.o session.o util.o client.c slab.c -o client -lmsgpackc -Lmsgpack-c/libmsgpackc.so.2.0.0 -lm `pkg-config --libs libxml-2.0 libzip lua5.2`
 
 Lexer.c:	Lexer.l
 	flex Lexer.l
