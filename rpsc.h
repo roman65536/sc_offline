@@ -1,4 +1,11 @@
+#include <stdio.h>
+#include <stdint.h>
+#include <stdlib.h>
+
+
 #include "expr.h"
+#include "queue.h"
+#include "slab.h"
 
 #define NEW 1
 
@@ -32,6 +39,7 @@ struct Sheet {
     int maxcol, maxrow;
     struct Sheet * next;
     struct Sheet * prev;
+    struct Objs_cache cache_ent;
 };
 
 #define HASH(row,col) (((row*65537)+col) % HASH_NR)
@@ -49,6 +57,24 @@ struct roman
     struct roman * next; // to chain to other roman structs..
 };
 
+#define PLUG_IN 1
+#define PLUG_OUT 2
+#define PLUG_FUNC 2
+
+
+
+struct plugin 
+{
+ char *name; 		//plugin name
+ int type;		//Plugin Type can be ored
+ char **ending;		//for auto detection of file .xlsx .html .sc
+ struct plugin *next;
+ int (*init)(struct plugin *); 	//  called when plugin loaded, for example to initial function calls 
+ int (*read)(struct roman *, char *);  //  
+ int (*write)(struct roman *, char *);  // 
+
+};
+
 
 #define FUNC_RANGE      1   /* Range Function */
 #define FUNC_MATH1      2   /* Math function 1 arg */
@@ -62,10 +88,10 @@ struct Functions {
 };
 
 
-#ifdef OLD
+#if OLD
 #define ATBL(sh, tbl, row, col)     (*(tbl + row) + (col))
 #else
-#define ATBL(sh, tbl, row, col)     atbl(sh,tbl,row,col)
+#define ATBL(sh,tbl,row,col) atbl(sh,tbl,row,col)
 struct Ent ** atbl(struct Sheet *sh, struct Ent ***tbl, int row, int col) ;
 #endif
 
@@ -138,10 +164,11 @@ void add_function(char * name, double (*funct) (struct roman *, int, char **), i
 void * search_func(char * name,int * type);
 
 
-struct Ent * lookat(struct Sheet * sh, int row, int col);
-struct Sheet * new_sheet(struct roman * doc , char * name);
-struct Sheet * Search_sheet(struct roman * doc, char * name);
-void recalc();
+extern struct Ent * lookat(struct Sheet * sh, int row, int col);
+extern struct Sheet * new_sheet(struct roman * doc , char * name);
+extern struct Sheet * Search_sheet(struct roman * doc, char * name);
+extern void recalc();
+extern void export(struct roman * p, FILE *pt ,char * start, char * end, char * start_col, char * end_col, char * start_row, char * end_row);
 
 SExpression * parse(char ** ptr);
 SExpression * getAST(const char * expr, struct roman * p);

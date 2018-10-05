@@ -56,7 +56,7 @@ io_loadxl(lua_State *L) {
     char *name = luaL_checkstring(L, 2);
     struct roman *p= ((struct roman *)luaL_checkudata(L, 1, LUA_SC));
     printf("%s %s %s\n",__FUNCTION__,p->name,name);
-    open_xlsx(p,name,"");
+    //open_xlsx(p,name,"");
 
     return 0;
 }
@@ -192,7 +192,7 @@ static int l_export_html (lua_State *L) {
 
     //sc_debug("setstr !!");
 
-    export(d,"<table>","</table>\n","<tr>","</tr>\n","<td>","</td>");
+    //export(d,"<table>","</table>\n","<tr>","</tr>\n","<td>","</td>");
 
     return 0;
 }

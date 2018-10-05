@@ -12,6 +12,7 @@
 
 #include "rpsc.h"
 #include "xlsx.h"
+#include "sheet.h"
 
 
 #define MAX(a,b) (((a)>(b))?(a):(b))
@@ -553,6 +554,36 @@ xmlChar * xpath = "//a:workbook/a:sheets/*";
     // deleterow(currow, 1);
     return 0;
 }
+
+
+static exl_read(struct roman *p, char *name)
+{
+
+ open_xlsx(p, name,"");
+}
+
+static char *exc_ending[]= {
+{".xlsx"},
+{0}
+};
+
+
+
+static char exl_name[] ="xlsx";
+
+ int init_xlsx(struct plugin *ptr)
+{
+ptr->ending=exc_ending;
+ptr->type=PLUG_IN;
+ptr->read=exl_read;
+ptr->name=exl_name;
+
+
+
+}
+
+
+
 #endif
 
 #ifdef XLSX_EXPORT

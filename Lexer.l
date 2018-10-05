@@ -148,6 +148,6 @@ WS          [ \r\n\t]*
 .               {  return yytext[0]; }
 
 %%
-int yyerror(void *p1, void *p2 , void *p3, const char *msg) {
-    fprintf(stderr,"YY Error: %s\n",msg); return 0;
-}
+//int yyerror(void *p1, void *p2 , void *p3, const char *msg) {
+//    fprintf(stderr,"YY Error: %s \n",msg); return 0;
+//}

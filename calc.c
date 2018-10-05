@@ -20,6 +20,7 @@ SExpression * getAST(const char * expr, struct roman * p) {
 
     if (yyparse(&expression, scanner,p)) {
         // error parsing
+	    printf(" %s \n", expr);
         return NULL;
     }
 
@@ -99,17 +100,16 @@ void recalc(struct roman * p) {
             for(x=0; x <= p->cur_sh->col; x++)
                 for(y=0; y <= p->cur_sh->row; y++) {
                     pp = ATBL(p->cur_sh,p->cur_sh->tbl, y, x);
-                    //if(pp != NULL && *pp != 0) {
-                    if(*pp != 0) {
+                    if((pp != 0) && (*pp != 0)) {
                         //printf("%s1 %s %d %d  %x val : %f\n",__FUNCTION__,p->cur_sh->name,x,y,(*pp)->flag, (*pp)->val);
                         if (((*pp)->flag & RP_FORMULA) == RP_FORMULA) {
                             int sz=0;
                             char *ptr=(*pp)->formula;
                             if ((*pp)->exp !=0 ) {
-                                struct Ent *pt;
+				struct Ent *pt;
                                 (*pp)->val=eval(p,(*pp)->exp, *pp);
-                                //    printf("%s2 %s %d %d val : %f\n",__FUNCTION__,p->cur_sh->name,x,y,(*pp)->val);
-                                pt=(*pp);
+                                //	    printf("%s2 %s %d %d val : %f\n",__FUNCTION__,p->cur_sh->name,x,y,(*pp)->val);
+				pt=(*pp);
                                 sz=sizeof(struct Ent *);
                                 //printf("%s %d %p\n",__FUNCTION__,sz*a,p->cache);
                                 if((sz*a) < 4096) sz=4096;

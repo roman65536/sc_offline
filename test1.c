@@ -23,20 +23,29 @@
 
 int growtbl(struct Sheet * sh,int rowcol, int toprow, int topcol);
 
+
+
 // reference a sheet in a formula
 int main () {
     // this could serve to load default functions (AVG, COUNT) from a lua script
     lua_State *L;
+    struct Ent *e1;
     L = luaL_newstate();
     int a;
+slab_allocator_init();
+ExpressionInit();
+init_lib();
+init_plugin();
 
-#ifdef OLD
-    printf("OLD\n");
-#else
-    printf("NEW\n");
-#endif
-
+load_plugin("html");
+load_plugin("xlsx");
     struct roman * p = (struct roman *) malloc(sizeof(struct roman));
+    struct Ent *tl;
+
+read_plugin(p,"test.html","html");
+read_plugin(p,"example/test.xlsx","xlsx");
+
+/*
     p->name=NULL;
     p->open=0; // we are not loading a file here..
     p->first_sh=p->last_sh=p->cur_sh=0;
@@ -45,7 +54,7 @@ int main () {
 
     // create a sheet
     struct Sheet * sh = new_sheet(p, "sales 1");
-
+    growtbl(sh, GROWNEW, 0, 0);
     p->cur_sh = sh;
     // set a value of a cell
     struct Ent * t = lookat(p->cur_sh, 0, 0);
@@ -54,7 +63,7 @@ int main () {
 
     // create a sheet
     struct Sheet * sh1 = new_sheet(p, "sales 2");
-
+    growtbl(sh1, GROWNEW, 0, 0);
     p->cur_sh = sh1;
     // set a value of a cell
     struct Ent * tl = lookat(p->cur_sh, 0, 0);
@@ -68,19 +77,25 @@ int main () {
     t->exp = getAST(ptr, p);
     t->flag |= VAL | RP_FORMULA;
     t->val = t->exp->value;
+ */
+   //open_xlsx(p, "example/test.xlsx",""); 
 
-for(a=0;a<1000;a++)
+for(a=0;a<1000000;a++)
 {
     // calc
     recalc(p);
-
+    tl= lookat(p->cur_sh,2,0);
     tl->val=(double)a;
     // show results
     //struct Ent * e1 = lookat(sh1, 1, 0);
-    struct Ent * e1 = lookat(Search_sheet(p, "sales 2"), 1, 0);
-    printf("result :: %f !!\n", e1->val);
+    //e1 = lookat(Search_sheet(p, "Roman"), 14, 0);
  }
+    e1 = lookat(Search_sheet(p, "Roman"), 14, 0);
+    printf("result :: %f !!\n", e1->val);
+    e1 = lookat(Search_sheet(p, "Roman"), 13, 2);
+    printf("result :: %f !!\n", e1->val);
 
+write_plugin(p,"test123.html","html");
     p->open=0;
     return 0;
 }

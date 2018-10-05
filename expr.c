@@ -5,12 +5,16 @@
 
 #include "expr.h"
 #include "rpsc.h"
+#include "slab.h"
+#include "queue.h"
 
 #include <stdlib.h>
 #include <string.h>
 
 
 struct Symbol *Symbol_first;
+
+static struct Objs_cache cache_exp;
 
 struct Symbol *create_symbol(char *name) {
     struct Symbol * tmp;
@@ -34,13 +38,18 @@ struct Symbol *find_symbol(char *name) {
     return( (struct Symbol *) 0);
 }
 
+ExpressionInit()
+{
+objs_cache_init(&cache_exp, sizeof(SExpression ), NULL);
+}
 
 /**
  * @brief Allocates space for expression
  * @return The expression or NULL if not enough memory
  */
 static SExpression * allocateExpression() {
-    SExpression * b = (SExpression *) malloc(sizeof(SExpression));
+    //SExpression * b = (SExpression *) malloc(sizeof(SExpression));
+    SExpression * b = (SExpression *) objs_cache_alloc(&cache_exp);;
 
     if (b == NULL)
         return NULL;
@@ -169,5 +178,6 @@ void deleteExpression(SExpression *b) {
     deleteExpression(b->left);
     deleteExpression(b->right);
 
-    free(b);
+    //free(b);
+   objs_cache_free(&cache_exp, b);
 }

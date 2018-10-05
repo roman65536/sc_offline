@@ -2,6 +2,7 @@
 #include <string.h>
 #include <malloc.h>
 #include "rpsc.h"
+#include "sheet.h"
 
 #define	isBlank(ch)	((ch) == ',') 
 
@@ -239,35 +240,36 @@ BOOL makeArgs(const char * cmd, int * retArgc, const char *** retArgv) {
 }
 
 
-void export(struct roman * p, char * start, char * end, char * start_col, char * end_col, char * start_row, char * end_row) {
+void export(struct roman * p, FILE *pt ,char * start, char * end, char * start_col, char * end_col, char * start_row, char * end_row) {
     register struct Ent ** pp;
     int x, y;
     int a = 0;
     char tmp[3];
 
 
-    if (start !=0 ) printf("%s",start);
+    if (start !=0 ) fprintf(pt,"%s",start);
 
-    for (x=0;x<p->cur_sh->col;x++) {
-        if (start_col != 0) printf("%s",start_col);
-        for (y=0;y<p->cur_sh->row;y++) {
+    for (x=0;x<=p->cur_sh->maxrow;x++) {
+        if (start_col != 0) fprintf(pt,"%s",start_col);
+        for (y=0;y<=p->cur_sh->maxcol;y++) {
             coltoa(y,tmp);
-            if (start_row != 0) printf("%s %s",start_row,tmp);
-            pp = ATBL(p->cur_sh,p->cur_sh->tbl,y,x);
-            if (*pp != 0) {
+            if (start_row != 0) fprintf(pt,"%s %s",start_row,tmp);
+            pp = ATBL(p->cur_sh,p->cur_sh->tbl,x,y);
+            if ((pp !=0 ) && (*pp != 0)) {
                 if (((*pp)->flag & RP_FORMULA) == RP_FORMULA) {
                     char *ptr=(*pp)->formula;
-                    printf("%g",(*pp)->val);
+                    fprintf(pt,"%g",(*pp)->val);
 
                 }
-                if (((*pp)->flag & RP_LABEL) == RP_LABEL) printf("%s",(*pp)->label);
+                if (((*pp)->flag & RP_LABEL) == RP_LABEL) fprintf(pt,"%s",(*pp)->label);
+                if (((*pp)->flag & VAL) == VAL) fprintf(pt," %g",(*pp)->val);
 
             }
-            if (end_row != 0) printf("%s",end_row);
+            if (end_row != 0) fprintf(pt,"%s",end_row);
 
         }
-        if (end_col != 0) printf("%s",end_col);
+        if (end_col != 0) fprintf(pt,"%s",end_col);
 
     }
-    if(end !=0 ) printf("%s",end);
+    if(end !=0 ) fprintf(pt,"%s",end);
 }

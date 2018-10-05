@@ -4,6 +4,7 @@
 #include "rpsc.h"
 #include "Parser.h"
 #include "Lexer.h"
+#include "sheet.h"
 
 struct Functions *first_func=0;
 
@@ -255,3 +256,24 @@ double do_stdev(struct roman *p, int argn, char **argc) {
 
     return (sqrt((nd*lp-rp*rp)/(nd*(nd-1))));
 }
+
+
+
+
+int init_lib()
+{
+    add_function("SUM", &do_sum, FUNC_RANGE);
+    add_function("PRODUCT", &do_prod, FUNC_RANGE);
+    add_function("MIN", &do_min, FUNC_RANGE);
+    add_function("MAX", &do_max, FUNC_RANGE);
+    add_function("AVERAGE", &do_avg, FUNC_RANGE);
+    add_function("CNT", &do_cnt, FUNC_RANGE);
+    add_function("COUNT", &do_cnt, FUNC_RANGE);
+    add_function("STDEV", &do_stdev, FUNC_RANGE);
+    add_function("SIN", &sin, FUNC_MATH1);
+    add_function("LOG", &log10, FUNC_MATH1);
+    add_function("EXP", &exp, FUNC_MATH1);
+    add_function("LN", &log, FUNC_MATH1);
+
+}
+

@@ -12,12 +12,14 @@
 #include "Lexer.h"
 #include <stdio.h>
 
-//int yyerror(SExpression **expression, yyscan_t scanner, const char *msg) {
+int yyerror(SExpression **expression, yyscan_t scanner, struct roman *p, const char *msg) {
 // Add error handling routine as needed
-//}
+printf("Error: [%s]  \n",msg);
+}
 
 SExpression *createEnt(struct Ent *ent);
 #define YYDEBUG 1
+#define YYERROR_VERBOSE 1
 %}
 
 %code requires {
