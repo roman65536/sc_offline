@@ -5,15 +5,15 @@ CC      = gcc
 #CFLAGS  = -O6 -DNEW -g -DSYSV3 -pg -fPIC -DCOMPAT_MODULE
 CFLAGS  = -g -DSYSV3 -DNEW  -fPIC -DCOMPAT_MODULE  -fvisibility=default -export-dynamic -ldl
 
-all:	test1 server client
+all:	test1 server client html.so xlsx.so
 
-test1:    lua.o  expr.o Parser.o Lexer.o sheet.o calc.o function.o session.o util.o test1.o rpsc.h html.so xlsx.so
+test1:    Parser.o lua.o expr.o Lexer.o sheet.o calc.o function.o session.o util.o test1.o rpsc.h html.so xlsx.so
 	$(CC) $(CFLAGS) lua.o  expr.o Parser.o Lexer.o sheet.o calc.o function.o session.o util.o test1.o plugin.c slab.c -lm `pkg-config --libs libxml-2.0 libzip lua5.2` -o test1
 
-server:    server.c session.o lua.o expr.o Parser.o Lexer.o sheet.o calc.o function.o util.o rpsc.h slab.o
+server:  server.c Parser.o session.o lua.o expr.o Lexer.o sheet.o calc.o function.o util.o rpsc.h slab.o
 	$(CC) $(CFLAGS) slab.o lua.o expr.o Parser.o Lexer.o sheet.o calc.o function.o session.o util.o server.c -o server -lmsgpackc -Lmsgpack-c/libmsgpackc.so.2.0.0 -lm `pkg-config --libs libxml-2.0 libzip lua5.2`
 
-client:    client.c lua.o expr.o Parser.o Lexer.o sheet.o calc.o function.o session.o util.o rpsc.h slab.o
+client:    client.c Parser.o lua.o expr.o Lexer.o sheet.o calc.o function.o session.o util.o rpsc.h slab.o
 	$(CC) $(CFLAGS) slab.o lua.o expr.o Parser.o Lexer.o sheet.o calc.o function.o session.o util.o client.c -o client -lmsgpackc -Lmsgpack-c/libmsgpackc.so.2.0.0 -lm `pkg-config --libs libxml-2.0 libzip lua5.2`
 
 Lexer.c:	Lexer.l
@@ -38,4 +38,4 @@ xlsx.so:		xlsx.c
 	$(CC) $(CFLAGS) -c $< -o $@ `pkg-config --cflags lua5.2`
 
 clean:
-	rm -f Lexer.c Parser.c Parser.h *.o gmon.out test1 server client
+	rm -f Lexer.c Parser.c Parser.h *.o gmon.out test1 server client html.so *.so
