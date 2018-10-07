@@ -5,14 +5,16 @@ CC      = gcc
 #CFLAGS  = -O6 -DNEW -g -DSYSV3 -pg -fPIC -DCOMPAT_MODULE
 CFLAGS  = -g -DSYSV3 -DNEW  -fPIC -DCOMPAT_MODULE  -fvisibility=default -export-dynamic -ldl
 
+all:	test1 server client html.so xlsx.so
+
 test1:    lua.o  expr.o Parser.o Lexer.o sheet.o calc.o function.o session.o util.o test1.o plugin.o slab.o rpsc.h html.so xlsx.so
 	$(CC) $(CFLAGS) lua.o  expr.o Parser.o Lexer.o sheet.o calc.o function.o session.o util.o test1.o plugin.o slab.o -lm `pkg-config --libs libxml-2.0 libzip lua5.2` -o test1
 
-server:    session.o lua.o xlsx.o expr.o Parser.o Lexer.o sheet.o calc.o function.o util.o rpsc.h slab.o
-	$(CC) $(CFLAGS) lua.o xlsx.o expr.o Parser.o Lexer.o sheet.o calc.o function.o session.o util.o server.c slab.c -o server -lmsgpackc -Lmsgpack-c/libmsgpackc.so.2.0.0 -lm `pkg-config --libs libxml-2.0 libzip lua5.2`
+server:  server.c Parser.o session.o lua.o expr.o Lexer.o sheet.o calc.o function.o util.o rpsc.h slab.o
+	$(CC) $(CFLAGS) slab.o lua.o expr.o Parser.o Lexer.o sheet.o calc.o function.o session.o util.o server.c -o server -lmsgpackc -Lmsgpack-c/libmsgpackc.so.2.0.0 -lm `pkg-config --libs libxml-2.0 libzip lua5.2`
 
-client:    lua.o xlsx.o expr.o Parser.o Lexer.o sheet.o calc.o function.o session.o util.o rpsc.h slab.o
-	$(CC) $(CFLAGS) lua.o xlsx.o expr.o Parser.o Lexer.o sheet.o calc.o function.o session.o util.o client.c slab.c -o client -lmsgpackc -Lmsgpack-c/libmsgpackc.so.2.0.0 -lm `pkg-config --libs libxml-2.0 libzip lua5.2`
+client:    client.c Parser.o lua.o expr.o Lexer.o sheet.o calc.o function.o session.o util.o rpsc.h slab.o
+	$(CC) $(CFLAGS) slab.o lua.o expr.o Parser.o Lexer.o sheet.o calc.o function.o session.o util.o client.c -o client -lmsgpackc -Lmsgpack-c/libmsgpackc.so.2.0.0 -lm `pkg-config --libs libxml-2.0 libzip lua5.2`
 
 Lexer.c:	Lexer.l
 	flex Lexer.l
@@ -20,7 +22,7 @@ Lexer.c:	Lexer.l
 Parser.c:	Parser.y Lexer.c
 		bison -t Parser.y
 
-xlsx.o:         xlsx.c
+xlsx.o:  xlsx.c
 	$(CC) $(CFLAGS) -c  -D XLSX xlsx.c `pkg-config --cflags libxml-2.0`
 
 
@@ -36,4 +38,4 @@ xlsx.so:		xlsx.c
 	$(CC) $(CFLAGS) -c $< -o $@ `pkg-config --cflags lua5.2`
 
 clean:
-	rm -f Lexer.c Parser.c Parser.h *.o gmon.out test1 server client
+	rm -f Lexer.c Parser.c Parser.h *.o gmon.out test1 server client html.so *.so
