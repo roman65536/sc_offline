@@ -14,7 +14,6 @@ int create_session() {
     p->first_sh=p->last_sh=p->cur_sh=0;
     p->cache=0;
     p->cache_nr=0;
-    //FIXME this is always 1 because variable is not shared between forks
     p->id = sessions == NULL ? 1 : sessions->id + 1;
     p->next = sessions;
     sessions = p;

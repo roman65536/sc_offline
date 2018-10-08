@@ -5,6 +5,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <netinet/in.h>
+#include <fcntl.h>
 
 #define PORT 1234
 
@@ -41,11 +42,18 @@ int main() {
         return -1;
     }
 
+    /* Put the socket in non-blocking mode:
+    if(fcntl(sock, F_SETFL, fcntl(sock, F_GETFL) | O_NONBLOCK) < 0) {
+        printf("cannot set socket in non blocking mode");
+        return -1;
+    }*/
+
     valread = read(sock, buffer, 1024);
      if (valread != -1) {
          printf("got server inf.: %s\n", buffer);
          buffer[0]='\0';
-    }
+    } else
+         printf("valread :%d\n", valread);
 
 
     msgpack_sbuffer_init(&sbuf); /* initialize buffer */
@@ -69,15 +77,14 @@ int main() {
 
     // get session ID
     valread = read(sock, buffer, 1024);
-     if (valread != -1) {
+    if (valread > 0) {
          msgpack_object o;
 
          //FIXME sizeof(..) may differ on sender and receiver machine
          msgpack_unpack(buffer, sizeof(buffer), NULL, &mempool, &o);
 
-         printf("got session #: " );
+         printf("got session #: \n" );
          msgpack_object_print(stdout, o);
-
     }
 
 

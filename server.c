@@ -5,27 +5,40 @@
 #include <netinet/in.h>
 #include <msgpack.h>
 #include <fcntl.h>
+#include <pthread.h>
 
 #include "session.h"
 
 #define PORT 1234
 #define MAXCLIENTS 3
 
-void handle_new_connection(struct sockaddr_in s);
-void process_msg(msgpack_object o);
+void * handle_new_connection(void * arg);
+void process_msg(int msocket, msgpack_object o);
 
-int msocket;
 struct sockaddr_in address;
+int server_fd;
 
 msgpack_sbuffer sbuf;
 msgpack_packer pk;
 msgpack_zone mempool;
 
+/* Used as argument to thread_start() */
+struct thread_info {
+       pthread_t thread_id;        /* ID returned by pthread_create() */
+       int       msocket;          /* socket descriptor */
+       };
+
 int main(void) {
 
-    int server_fd;
     int opt = 1;
     int addrlen = sizeof(address);
+
+    int MAX=10;
+    int intLanzados = 0;
+    int stat;
+    struct thread_info thLanzados[MAX];
+    int msocket;
+    int i;
 
     // Creating socket file descriptor
     if ((server_fd = socket(AF_INET, SOCK_STREAM, 0)) == 0) {
@@ -66,7 +79,7 @@ int main(void) {
             return -1;
         }
 
-        if ((msocket = accept(server_fd, (struct sockaddr *)&address, (socklen_t*)&addrlen))<0) {
+        if ((msocket = accept(server_fd, (struct sockaddr *) &address, (socklen_t*) &addrlen))<0) {
             printf("accept");
             return -1;
         }
@@ -77,61 +90,79 @@ int main(void) {
             printf("cannot set socket in non blocking mode");
             return -1;
         }
-        if (msocket < 0) printf("ERROR on accept\n");
+        if (msocket < 0) {
+            printf("ERROR on accept\n");
+            continue;
+        }
 
-        int pid = fork();
+        thLanzados[intLanzados].msocket = msocket;
 
-        if (pid < 0) printf("ERROR on fork\n");
+        // The pthread_create() call stores the thread ID into corresponding element of thread_info
+        int stat = pthread_create(&thLanzados[intLanzados].thread_id, NULL, &handle_new_connection, &thLanzados[intLanzados]);
 
-        if (pid == 0)  {
-            close(server_fd);
-            handle_new_connection(address);
-            return 0;
-        } else close(msocket);
+        // Error creating the thread
+        if ( 0 != stat ) return -1;
+        else intLanzados++;
+
+    }
+    return 0;
+
+    // wait for threads to finish
+    printf("waiting for threads to finish");
+    for (i=0; i<intLanzados; i++) {
+        stat = pthread_join(thLanzados[i].thread_id, NULL);
+        if (0 != stat) return -1;
     }
 
+    close(server_fd);
     return 0;
 }
 
-void handle_new_connection(struct sockaddr_in s) {
+void * handle_new_connection(void * arg) {
+    struct thread_info * ti = arg;
+    int tid = ti->thread_id;
+    int msocket = ti->msocket;
     char buffer[1024] = {0};
-    char * helo = "ROMAN server v0.01";
+    printf("new   thread: %d\n", msocket);
     int valread;
 
-    // send helo
+    // send server welcome
+    char * helo = "ROMAN server v0.01";
     send(msocket, helo, strlen(helo), 0 );
 
+    int l=0;
     while (1) {
         valread = read(msocket, buffer, 1024);
 
-        if (valread != -1) {
+        if (valread > 0) {
             msgpack_object deserialized;
 
             //FIXME sizeof(..) may differ on sender and receiver machine
             msgpack_unpack(buffer, sizeof(buffer), NULL, &mempool, &deserialized);
 
-            process_msg(deserialized);
+            process_msg(msocket, deserialized);
 
-
-            //if (! strncmp(buffer, "BYE", 3)) return;
+            if (! strncmp(buffer, "BYE", 3)) break;
             //if (valread == 4) printf("msg from %d %d: %s %d\n", s.sin_addr, s.sin_port, buffer, sizeof(buffer));
 
         }
-
-        break;
     }
     msgpack_zone_destroy(&mempool);
     msgpack_sbuffer_destroy(&sbuf);
+
+    close(msocket);
+    printf("closed socket: %d\n", msocket);
     return;
 }
 
-void process_msg(msgpack_object o) {
+void process_msg(int msocket, msgpack_object o) {
+    printf("process msg from: %d --\n\\\t->", msocket);
     msgpack_object_print(stdout, o);
-    printf("\n");
+    printf("\n\n");
 
     // HANDLE HELO and create a new session
     if (o.type == MSGPACK_OBJECT_STR && ! strcmp(o.via.str.ptr, "HELO")) {
-        printf("got: %s\n", o);
+        //printf("got: %s\n", o);
         // create new session
         int id_session = create_session();
         printf("created session #: %d\n", id_session);

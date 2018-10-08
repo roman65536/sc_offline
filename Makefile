@@ -3,7 +3,7 @@ SHELL = /bin/bash
 FILES   = lua.c xlsx.c expr.c Parser.c Lexer.c sheet.c calc.c function.c session.c util.c test1.c server.c client.c html.c plugin.c slab.c
 CC      = gcc
 #CFLAGS  = -O6 -DNEW -g -DSYSV3 -pg -fPIC -DCOMPAT_MODULE
-CFLAGS  = -g -DSYSV3 -DNEW  -fPIC -DCOMPAT_MODULE  -fvisibility=default -export-dynamic -ldl
+CFLAGS  = -g -DSYSV3 -DNEW  -fPIC -DCOMPAT_MODULE  -fvisibility=default -export-dynamic -ldl -lpthread
 
 all:	test1 server client html.so xlsx.so
 
