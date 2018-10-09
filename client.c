@@ -78,13 +78,14 @@ int main() {
     // get session ID
     valread = read(sock, buffer, 1024);
     if (valread > 0) {
-         msgpack_object o;
+        msgpack_object o;
 
-         //FIXME sizeof(..) may differ on sender and receiver machine
-         msgpack_unpack(buffer, sizeof(buffer), NULL, &mempool, &o);
+        //FIXME sizeof(..) may differ on sender and receiver machine
+        msgpack_unpack(buffer, sizeof(buffer), NULL, &mempool, &o);
 
-         printf("got session #: \n" );
-         msgpack_object_print(stdout, o);
+        printf("got session #: " );
+        msgpack_object_print(stdout, o);
+        printf("\n" );
     }
 
 

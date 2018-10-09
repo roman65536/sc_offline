@@ -10,7 +10,7 @@
 #include "session.h"
 
 #define PORT 1234
-#define MAXCLIENTS 3
+#define MAXCLIENTS 30
 
 void * handle_new_connection(void * arg);
 void process_msg(int msocket, msgpack_object o);
@@ -28,17 +28,13 @@ struct thread_info {
        int       msocket;          /* socket descriptor */
        };
 
-int main(void) {
 
+int main(void) {
     int opt = 1;
     int addrlen = sizeof(address);
-
-    int MAX=10;
     int intLanzados = 0;
-    int stat;
-    struct thread_info thLanzados[MAX];
-    int msocket;
-    int i;
+    int stat, msocket, i;
+    struct thread_info thLanzados[MAXCLIENTS];
 
     // Creating socket file descriptor
     if ((server_fd = socket(AF_INET, SOCK_STREAM, 0)) == 0) {
@@ -63,8 +59,6 @@ int main(void) {
         return -1;
     }
 
-    msgpack_sbuffer_init(&sbuf); /* msgpack::sbuffer */
-    msgpack_packer_init(&pk, &sbuf, msgpack_sbuffer_write); /* initialize packer */
 
     /* deserialize the buffer into msgpack_object instance. */
     /* deserialized object is valid during the msgpack_zone instance alive. */
@@ -125,6 +119,9 @@ void * handle_new_connection(void * arg) {
     char buffer[1024] = {0};
     printf("new   thread: %d\n", msocket);
     int valread;
+
+    msgpack_sbuffer_init(&sbuf); /* msgpack::sbuffer */
+    msgpack_packer_init(&pk, &sbuf, msgpack_sbuffer_write); /* initialize packer */
 
     // send server welcome
     char * helo = "ROMAN server v0.01";
