@@ -13,13 +13,19 @@ msgpack_sbuffer sbuf; /* buffer */
 msgpack_packer pk;    /* packer */
 msgpack_zone mempool;
 
+int id_session, sock;
+
+void send_helo();
+void create_sheet();
+int valread;
+char buffer[1024] = {0};
+
 int main() {
 
     struct sockaddr_in address;
-    int sock = 0, valread;
     struct sockaddr_in serv_addr;
-    char buffer[1024] = {0};
 
+    sock = 0;
 
     if ((sock = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
         printf("Socket creation error \n");
@@ -63,6 +69,17 @@ int main() {
     /* deserialized object is valid during the msgpack_zone instance alive. */
     msgpack_zone_init(&mempool, 1024);
 
+    send_helo();
+
+    create_sheet();
+
+    msgpack_sbuffer_destroy(&sbuf);
+
+    return 0;
+}
+
+
+void send_helo() {
     // pack HELO
     msgpack_pack_str(&pk, 4);
     msgpack_pack_str_body(&pk, "HELO", 4); // this requests a new session
@@ -74,6 +91,7 @@ int main() {
 
     // send HELO
     send(sock, sbuf.data, sbuf.size, 0 );
+    msgpack_sbuffer_clear(&sbuf);
 
     // get session ID
     valread = read(sock, buffer, 1024);
@@ -83,13 +101,34 @@ int main() {
         //FIXME sizeof(..) may differ on sender and receiver machine
         msgpack_unpack(buffer, sizeof(buffer), NULL, &mempool, &o);
 
-        printf("got session #: " );
-        msgpack_object_print(stdout, o);
-        printf("\n" );
+        //msgpack_object_print(stdout, o);
+
+        if (o.type == MSGPACK_OBJECT_MAP && o.via.map.size == 1 && ! strncmp(o.via.map.ptr->key.via.str.ptr, "id", 2)) {
+            id_session = (int) o.via.map.ptr->val.via.u64;
+            printf("got session #: %d.\n", id_session);
+        }
     }
+}
 
+void create_sheet() {
+    //msgpack_sbuffer_clear(&sbuf);
+    msgpack_pack_map(&pk, 3);
+    msgpack_pack_str(&pk, 2);
+    msgpack_pack_str_body(&pk, "id", 2);
+    msgpack_pack_int(&pk, id_session);
+    msgpack_pack_str(&pk, 6);
+    msgpack_pack_str_body(&pk, "method", 6);
+    msgpack_pack_str(&pk, 12);
+    msgpack_pack_str_body(&pk, "create_sheet", 12);
+    msgpack_pack_str(&pk, 6);
+    msgpack_pack_str_body(&pk, "params", 6);
+    msgpack_pack_map(&pk, 1);
+    msgpack_pack_str(&pk, 4);
+    msgpack_pack_str_body(&pk, "name", 4);
+    msgpack_pack_str(&pk, 6);
+    msgpack_pack_str_body(&pk, "sheet1", 6);
 
-    msgpack_sbuffer_destroy(&sbuf);
+    send(sock, sbuf.data, sbuf.size, 0 );
+    //msgpack_sbuffer_clear(&sbuf);
 
-    return 0;
 }

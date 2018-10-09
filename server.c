@@ -153,7 +153,7 @@ void * handle_new_connection(void * arg) {
 }
 
 void process_msg(int msocket, msgpack_object o) {
-    printf("process msg from: %d --\n\\\t->", msocket);
+    printf("process msg from: %d - type:%d\n\\\t->", msocket, o.type);
     msgpack_object_print(stdout, o);
     printf("\n\n");
 
@@ -164,12 +164,33 @@ void process_msg(int msocket, msgpack_object o) {
         int id_session = create_session();
         printf("created session #: %d\n", id_session);
 
+        msgpack_pack_map(&pk, 1);
+        msgpack_pack_str(&pk, 2);
+        msgpack_pack_str_body(&pk, "id", 2);
         msgpack_pack_int(&pk, id_session);
         send(msocket, sbuf.data, sbuf.size, 0 );
+        msgpack_sbuffer_clear(&sbuf);
 
-    } else if (o.type == MSGPACK_OBJECT_ARRAY) {
-        printf("size: %d\n", o.via.array.size);
-        printf("obj1: %d\n", (int) o.via.array.ptr[0].via.u64);
-        printf("obj2: %s\n", o.via.array.ptr[1]);
+    // handle a message that comes in a map
+    } else if (o.type == MSGPACK_OBJECT_MAP) {
+        int size = o.via.map.size;
+        printf("size: %d\n", size);
+        msgpack_object_kv * okv = o.via.map.ptr;
+        int i;
+        for (i=0; i<size; i++) {
+            msgpack_object * p = &okv[i].key;
+            msgpack_object * q = &okv[i].val;
+
+            if (p->type == MSGPACK_OBJECT_STR) {
+                printf("key: %s", p->via.str.ptr);
+            } else if (p->type == MSGPACK_OBJECT_POSITIVE_INTEGER) {
+                printf("key: %d", (int) p->via.u64);
+            }
+            if (q->type == MSGPACK_OBJECT_STR) {
+                printf("val: %s", q->via.str.ptr);
+            } else if (q->type == MSGPACK_OBJECT_POSITIVE_INTEGER) {
+                printf("val: %d", (int) q->via.u64);
+            }
+        }
     }
 }
