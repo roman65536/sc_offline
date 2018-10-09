@@ -173,24 +173,28 @@ void process_msg(int msocket, msgpack_object o) {
 
     // handle a message that comes in a map
     } else if (o.type == MSGPACK_OBJECT_MAP) {
-        int size = o.via.map.size;
-        printf("size: %d\n", size);
-        msgpack_object_kv * okv = o.via.map.ptr;
-        int i;
-        for (i=0; i<size; i++) {
-            msgpack_object * p = &okv[i].key;
-            msgpack_object * q = &okv[i].val;
 
-            if (p->type == MSGPACK_OBJECT_STR) {
-                printf("key: %s", p->via.str.ptr);
-            } else if (p->type == MSGPACK_OBJECT_POSITIVE_INTEGER) {
-                printf("key: %d", (int) p->via.u64);
+        int size = o.via.map.size;
+
+        msgpack_object_kv * p = o.via.map.ptr;
+        msgpack_object_kv * pend = o.via.map.ptr + o.via.map.size;
+
+        while (p < pend) {
+            if (p->key.type == MSGPACK_OBJECT_STR) {
+                printf("key: %.*s\n", p->key.via.str.size, p->key.via.str.ptr);
+            } else if (p->key.type == MSGPACK_OBJECT_POSITIVE_INTEGER) {
+                printf("key: %d\n", (int) p->key.via.u64);
             }
-            if (q->type == MSGPACK_OBJECT_STR) {
-                printf("val: %s", q->via.str.ptr);
-            } else if (q->type == MSGPACK_OBJECT_POSITIVE_INTEGER) {
-                printf("val: %d", (int) q->via.u64);
+            if (p->val.type == MSGPACK_OBJECT_STR) {
+                printf("val: %.*s\n", p->val.via.str.size, p->val.via.str.ptr);
+            } else if (p->val.type == MSGPACK_OBJECT_POSITIVE_INTEGER) {
+                printf("val: %d\n", (int) p->val.via.u64);
+            } else if (p->val.type == MSGPACK_OBJECT_MAP) {
+                printf("val: ");
+                msgpack_object_print(stdout, p->val);
+                printf("\n");
             }
+            p++;
         }
     }
 }
