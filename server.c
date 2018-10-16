@@ -29,6 +29,19 @@ struct thread_info {
        };
 
 
+// this is a dirty struct to handle a message
+// will be removed later on
+typedef struct {
+    int id;
+    char method[20];
+    char name[20]; //sheet_name
+    int row;
+    int col;
+    double val;
+} msg;
+
+void decompress_msg(msgpack_object o, msg * m);
+
 int main(void) {
     int opt = 1;
     int addrlen = sizeof(address);
@@ -154,8 +167,8 @@ void * handle_new_connection(void * arg) {
 
 void process_msg(int msocket, msgpack_object o) {
     printf("process msg from: %d - type:%d\n\\\t->", msocket, o.type);
-    msgpack_object_print(stdout, o);
-    printf("\n\n");
+    //msgpack_object_print(stdout, o);
+    //printf("\n\n");
 
     // HANDLE HELO and create a new session
     if (o.type == MSGPACK_OBJECT_STR && ! strcmp(o.via.str.ptr, "HELO")) {
@@ -179,22 +192,52 @@ void process_msg(int msocket, msgpack_object o) {
         msgpack_object_kv * p = o.via.map.ptr;
         msgpack_object_kv * pend = o.via.map.ptr + o.via.map.size;
 
+        msg m;
+        m.method[0]='\0';
+        m.name[0]='\0';
+        decompress_msg(o, &m);
+        printf("m.id: %d\n", m.id);
+        //printf("m.row: %d\n", m.row);
+        //printf("m.col: %d\n", m.col);
+        printf("m.method: %s.\n", m.method);
+        printf("m.name: %s.\n", m.name);
+        //printf("m.val: %f\n", m.val);
+    }
+}
+
+// will be removed later
+// decompress message
+void decompress_msg(msgpack_object o, msg * m) {
+        int size = o.via.map.size;
+
+        msgpack_object_kv * p = o.via.map.ptr;
+        msgpack_object_kv * pend = o.via.map.ptr + o.via.map.size;
+
         while (p < pend) {
             if (p->key.type == MSGPACK_OBJECT_STR) {
-                printf("key: %.*s\n", p->key.via.str.size, p->key.via.str.ptr);
+                //printf("key: %.*s\n", p->key.via.str.size, p->key.via.str.ptr);
+
+                if (! strncmp(p->key.via.str.ptr, "id", p->key.via.str.size)) m->id = p->val.via.u64;
+                if (! strncmp(p->key.via.str.ptr, "row", p->key.via.str.size)) m->row = p->val.via.u64;
+                if (! strncmp(p->key.via.str.ptr, "col", p->key.via.str.size)) m->col = p->val.via.u64;
+                if (! strncmp(p->key.via.str.ptr, "val", p->key.via.str.size)) m->val = p->val.via.f64;
+                if (! strncmp(p->key.via.str.ptr, "method", p->key.via.str.size)) strncpy(m->method, p->val.via.str.ptr, p->val.via.str.size);
+                if (! strncmp(p->key.via.str.ptr, "name", p->key.via.str.size))   strncpy(m->name  , p->val.via.str.ptr, p->val.via.str.size);
+
             } else if (p->key.type == MSGPACK_OBJECT_POSITIVE_INTEGER) {
-                printf("key: %d\n", (int) p->key.via.u64);
+                //printf("key: %d\n", (int) p->key.via.u64);
             }
             if (p->val.type == MSGPACK_OBJECT_STR) {
-                printf("val: %.*s\n", p->val.via.str.size, p->val.via.str.ptr);
+                //printf("val: %.*s\n", p->val.via.str.size, p->val.via.str.ptr);
             } else if (p->val.type == MSGPACK_OBJECT_POSITIVE_INTEGER) {
-                printf("val: %d\n", (int) p->val.via.u64);
+                //printf("val: %d\n", (int) p->val.via.u64);
             } else if (p->val.type == MSGPACK_OBJECT_MAP) {
-                printf("val: ");
-                msgpack_object_print(stdout, p->val);
-                printf("\n");
+                //printf("val: ");
+                //msgpack_object_print(stdout, p->val);
+                decompress_msg(p->val, m);
+                //printf("\n");
             }
             p++;
         }
-    }
 }
+
