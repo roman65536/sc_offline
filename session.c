@@ -42,3 +42,16 @@ int close_session (int id) {
     }
     return -1;
 }
+
+struct roman * get_session (int id) {
+    if (sessions && sessions->id == id) {
+        return sessions;
+    }
+
+    struct roman * r = sessions;
+    while (r != NULL) {
+        if (r->id == id) return r;
+        r = r->next;
+    }
+    return r;
+}

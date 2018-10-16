@@ -17,6 +17,9 @@ int id_session, sock;
 
 void send_helo();
 void create_sheet();
+float get_val(int row, int col);
+void set_val(int row, int col, float val);
+
 int valread;
 char buffer[1024] = {0};
 
@@ -73,11 +76,93 @@ int main() {
 
     create_sheet();
 
+    set_val(0, 0, 12.4);
+
+    printf("value returned from server: %f.", get_val(0, 0));
+
     msgpack_sbuffer_destroy(&sbuf);
 
     return 0;
 }
 
+void set_val(int row, int col, float val) {
+    msgpack_pack_map(&pk, 3);
+
+    msgpack_pack_str(&pk, 2);
+    msgpack_pack_str_body(&pk, "id", 2);
+    msgpack_pack_short(&pk, id_session);
+
+    msgpack_pack_str(&pk, 6);
+    msgpack_pack_str_body(&pk, "method", 6);
+    msgpack_pack_str(&pk, 7);
+    msgpack_pack_str_body(&pk, "set_val", 7);
+
+    msgpack_pack_str(&pk, 6);
+    msgpack_pack_str_body(&pk, "params", 6);
+    msgpack_pack_map(&pk, 3);
+
+    msgpack_pack_str(&pk, 3);
+    msgpack_pack_str_body(&pk, "row", 3);
+    msgpack_pack_int(&pk, row);
+
+    msgpack_pack_str(&pk, 3);
+    msgpack_pack_str_body(&pk, "col", 3);
+    msgpack_pack_int(&pk, col);
+
+    msgpack_pack_str(&pk, 3);
+    msgpack_pack_str_body(&pk, "val", 3);
+    msgpack_pack_float(&pk, val);
+    send(sock, sbuf.data, sbuf.size, 0 );
+    msgpack_sbuffer_clear(&sbuf);
+
+    //TODO: get OK return status
+}
+
+float get_val(int row, int col) {
+    msgpack_pack_map(&pk, 3);
+
+    msgpack_pack_str(&pk, 2);
+    msgpack_pack_str_body(&pk, "id", 2);
+    msgpack_pack_short(&pk, id_session);
+
+    msgpack_pack_str(&pk, 6);
+    msgpack_pack_str_body(&pk, "method", 6);
+    msgpack_pack_str(&pk, 7);
+    msgpack_pack_str_body(&pk, "get_val", 7);
+
+    msgpack_pack_str(&pk, 6);
+    msgpack_pack_str_body(&pk, "params", 6);
+    msgpack_pack_map(&pk, 2);
+
+    msgpack_pack_str(&pk, 3);
+    msgpack_pack_str_body(&pk, "row", 3);
+    msgpack_pack_int(&pk, row);
+
+    msgpack_pack_str(&pk, 3);
+    msgpack_pack_str_body(&pk, "col", 3);
+    msgpack_pack_int(&pk, col);
+
+    send(sock, sbuf.data, sbuf.size, 0 );
+    msgpack_sbuffer_clear(&sbuf);
+
+    // get value
+    valread = read(sock, buffer, 1024);
+    if (valread > 0) {
+        msgpack_object o;
+
+        //FIXME sizeof(..) may differ on sender and receiver machine
+        msgpack_unpack(buffer, sizeof(buffer), NULL, &mempool, &o);
+
+        printf("printing object\n");
+        msgpack_object_print(stdout, o);
+
+        /*if (o.type == MSGPACK_OBJECT_MAP && o.via.map.size == 2 &&
+                ! strncmp(o.via.map.ptr->key.via.str.ptr, "id", 2)) {
+            id_session = (int) o.via.map.ptr->val.via.u64;
+            printf("got session #: %d.\n", id_session);
+        }*/
+    }
+}
 
 void send_helo() {
     // pack HELO
@@ -129,6 +214,6 @@ void create_sheet() {
     msgpack_pack_str_body(&pk, "sheet1", 6);
 
     send(sock, sbuf.data, sbuf.size, 0 );
-    //msgpack_sbuffer_clear(&sbuf);
+    msgpack_sbuffer_clear(&sbuf);
 
 }

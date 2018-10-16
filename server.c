@@ -8,6 +8,8 @@
 #include <pthread.h>
 
 #include "session.h"
+#include "sheet.h"
+#include "rpsc.h"
 
 #define PORT 1234
 #define MAXCLIENTS 30
@@ -195,13 +197,69 @@ void process_msg(int msocket, msgpack_object o) {
         msg m;
         m.method[0]='\0';
         m.name[0]='\0';
+        m.id  = -1;
+        m.row = -1;
+        m.col = -1;
+        m.val = -1; // val should be int * type
+
         decompress_msg(o, &m);
-        printf("m.id: %d\n", m.id);
-        //printf("m.row: %d\n", m.row);
-        //printf("m.col: %d\n", m.col);
-        printf("m.method: %s.\n", m.method);
-        printf("m.name: %s.\n", m.name);
-        //printf("m.val: %f\n", m.val);
+
+        printf("debug:\n");
+        if (m.id != -1)       printf("m.id: %d\n", m.id);
+        if (m.row != -1)      printf("m.row: %d\n", m.row);
+        if (m.col != -1)      printf("m.col: %d\n", m.col);
+        if (strlen(m.method)) printf("m.method: %s.\n", m.method);
+        if (strlen(m.method)) printf("m.name: %s.\n", m.name);
+        printf("m.val: %f\n", m.val);
+
+        if (! strncmp("create_sheet", m.method, 12)) {
+            struct roman * cur_sesn = get_session (m.id);
+            struct Sheet * sh = new_sheet(cur_sesn, m.name);
+            growtbl(sh, GROWNEW, 0, 0);
+            cur_sesn->cur_sh = sh;
+            // return an OK msg to client
+            msgpack_pack_map(&pk, 1);
+            msgpack_pack_str(&pk, 3);
+            msgpack_pack_str_body(&pk, "ret", 3);
+            msgpack_pack_short(&pk, 0);
+            send(msocket, sbuf.data, sbuf.size, 0 );
+            msgpack_sbuffer_clear(&sbuf);
+            /* TODO: should return -1 if session not found
+                     should return -2 if sheet not found */
+
+        } else if (! strncmp("set_val", m.method, 7)) {
+            struct roman * cur_sesn = get_session (m.id);
+            struct Ent * t = lookat(cur_sesn->cur_sh, m.row, m.col); // USES CURRENT SHEET
+            t->flag |= VAL;
+            t->val = m.val;
+            // return an OK msg to client
+            msgpack_pack_map(&pk, 1);
+            msgpack_pack_str(&pk, 3);
+            msgpack_pack_str_body(&pk, "ret", 3);
+            msgpack_pack_short(&pk, 0);
+            send(msocket, sbuf.data, sbuf.size, 0 );
+            msgpack_sbuffer_clear(&sbuf);
+            /* TODO: should return -1 if session not found
+                     should return -2 if sheet not found */
+
+        } else if (! strncmp("get_val", m.method, 7)) {
+            struct roman * cur_sesn = get_session (m.id);
+            struct Ent * e1 = lookat(cur_sesn->cur_sh, m.row, m.col);
+            msgpack_pack_map(&pk, 2);
+            msgpack_pack_str(&pk, 3);
+            msgpack_pack_str_body(&pk, "ret", 3);
+            msgpack_pack_short(&pk, 0);
+            msgpack_pack_str(&pk, 3);
+            msgpack_pack_str_body(&pk, "val", 3);
+            msgpack_pack_float(&pk, e1->val);
+            send(msocket, sbuf.data, sbuf.size, 0 );
+            msgpack_sbuffer_clear(&sbuf);
+            /* TODO: should return -1 if session not found
+                     should return -2 if sheet not found */
+
+        } else if (! strncmp("recalc", m.method, 6)) {
+            // TODO
+        }
     }
 }
 
