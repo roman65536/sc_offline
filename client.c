@@ -17,11 +17,12 @@ int id_session, sock;
 
 void send_helo();
 void create_sheet();
-float get_val(int row, int col);
+int get_val(int row, int col, float * res);
 void set_val(int row, int col, float val);
 
 int valread;
 char buffer[1024] = {0};
+char bufferw[1024] = {0};
 
 int main() {
 
@@ -72,14 +73,21 @@ int main() {
     /* deserialized object is valid during the msgpack_zone instance alive. */
     msgpack_zone_init(&mempool, 1024);
 
+    printf("sending helo\n");
     send_helo();
 
+    printf("creating sheet\n");
     create_sheet();
 
+    printf("setting value\n");
     set_val(0, 0, 12.4);
 
-    printf("value returned from server: %f.", get_val(0, 0));
+    sleep(5);
+    float f;
+    int res = get_val(0, 0, &f);
+    if (res == 0) printf("\ngetting value: %f.", f);
 
+    msgpack_zone_destroy(&mempool);
     msgpack_sbuffer_destroy(&sbuf);
 
     return 0;
@@ -116,9 +124,21 @@ void set_val(int row, int col, float val) {
     msgpack_sbuffer_clear(&sbuf);
 
     //TODO: get OK return status
+    valread = read(sock, buffer, 1024);
+    if (valread > 0) {
+        msgpack_object p;
+
+        //FIXME sizeof(..) may differ on sender and receiver machine
+        msgpack_unpack(buffer, sizeof(buffer), NULL, &mempool, &p);
+
+        msgpack_object_print(stdout, p);
+    }
 }
 
-float get_val(int row, int col) {
+// return 0 when ok. -1 when not found/error
+int get_val(int row, int col, float * res) {
+    int found=0;
+
     msgpack_pack_map(&pk, 3);
 
     msgpack_pack_str(&pk, 2);
@@ -145,34 +165,43 @@ float get_val(int row, int col) {
     send(sock, sbuf.data, sbuf.size, 0 );
     msgpack_sbuffer_clear(&sbuf);
 
+    msgpack_unpacker unp;
+    bool result = msgpack_unpacker_init(&unp, 1024);
+    if (result) printf("\nok init\n");
+
     // get value
-    valread = read(sock, buffer, 1024);
+    valread = read(sock, bufferw, 1024);
     if (valread > 0) {
-        msgpack_object o;
+        memcpy(msgpack_unpacker_buffer(&unp), bufferw, 1024);
+        msgpack_unpacker_buffer_consumed(&unp, 1024);
+        msgpack_unpacked und;
+        msgpack_unpack_return ret;
+        msgpack_unpacked_init(&und);
+        ret = msgpack_unpacker_next(&unp, &und);
+        if (ret == MSGPACK_UNPACK_SUCCESS) printf("\nok unpacked\n");
+        msgpack_object q = und.data;
 
-        //FIXME sizeof(..) may differ on sender and receiver machine
-        msgpack_unpack(buffer, sizeof(buffer), NULL, &mempool, &o);
+        msgpack_object_print(stdout, q);
 
-        printf("printing object\n");
-        msgpack_object_print(stdout, o);
-
-        /*if (o.type == MSGPACK_OBJECT_MAP && o.via.map.size == 2 &&
-                ! strncmp(o.via.map.ptr->key.via.str.ptr, "id", 2)) {
-            id_session = (int) o.via.map.ptr->val.via.u64;
-            printf("got session #: %d.\n", id_session);
-        }*/
+        if (
+           q.type == MSGPACK_OBJECT_MAP && q.via.map.size == 2 &&
+           ! strncmp(q.via.map.ptr->key.via.str.ptr, "ret", 3) &&
+           ((int) q.via.map.ptr->val.via.u64 == 0) &&
+           ! strncmp(((q.via.map.ptr)+1)->key.via.str.ptr, "val", 3)
+           ) {
+            *res = ((q.via.map.ptr)+1)->val.via.f64;
+            found = 1;
+        }
+        msgpack_unpacked_destroy(&und);
     }
+    msgpack_unpacker_destroy(&unp);
+    return found ? 0 : -1;
 }
 
 void send_helo() {
     // pack HELO
     msgpack_pack_str(&pk, 4);
     msgpack_pack_str_body(&pk, "HELO", 4); // this requests a new session
-
-    //msgpack_pack_array(&pk, 2);
-    //msgpack_pack_int(&pk, 16);
-    //msgpack_pack_str(&pk, 4);
-    //msgpack_pack_str_body(&pk, "HELO", 4);
 
     // send HELO
     send(sock, sbuf.data, sbuf.size, 0 );
@@ -216,4 +245,11 @@ void create_sheet() {
     send(sock, sbuf.data, sbuf.size, 0 );
     msgpack_sbuffer_clear(&sbuf);
 
+    // get OK
+    valread = read(sock, buffer, 1024);
+    if (valread > 0) {
+        msgpack_object o;
+        msgpack_unpack(buffer, sizeof(buffer), NULL, &mempool, &o);
+        msgpack_object_print(stdout, o);
+    }
 }
