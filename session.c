@@ -29,12 +29,14 @@ int close_session (int id) {
     if (sessions && sessions->id == id) {
         free(r);
         sessions = NULL;
+        printf("session removed1\n");
         return 0;
     }
     while (r != NULL) {
         if (r->id == id) {
             prev = sessions->next;
             free(prev);
+            printf("session removed2\n");
             return 0;
         }
         prev = r;

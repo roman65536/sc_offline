@@ -15,7 +15,7 @@
 #define MAXCLIENTS 30
 
 void * handle_new_connection(void * arg);
-void process_msg(int msocket, msgpack_object o);
+int process_msg(int msocket, msgpack_object o);
 
 struct sockaddr_in address;
 int server_fd;
@@ -28,11 +28,12 @@ msgpack_zone mempool;
 struct thread_info {
        pthread_t thread_id;        /* ID returned by pthread_create() */
        int       msocket;          /* socket descriptor */
+       int exit;                   /* set it to 1 to exit thread */
        };
 
 
 // this is a dirty struct to handle a message
-// will be removed later on
+// will be removed later on when code generator is ready
 typedef struct {
     int id;
     char method[20];
@@ -40,6 +41,7 @@ typedef struct {
     int row;
     int col;
     double val;
+    short bye;
 } msg;
 
 void decompress_msg(msgpack_object o, msg * m);
@@ -114,13 +116,15 @@ int main(void) {
         else intLanzados++;
 
     }
-    return 0;
 
     // wait for threads to finish
     printf("waiting for threads to finish");
     for (i=0; i<intLanzados; i++) {
         stat = pthread_join(thLanzados[i].thread_id, NULL);
-        if (0 != stat) return -1;
+        if (0 != stat) {
+            printf("error waiting threads to finish\n");
+            return -1;
+        }
     }
 
     close(server_fd);
@@ -147,8 +151,8 @@ void * handle_new_connection(void * arg) {
     char * helo = "ROMAN server v0.01";
     send(msocket, helo, strlen(helo), 0 );
 
-    int l=0;
-    while (1) {
+    int res = 0;
+    while (res == 0) {
         valread = read(msocket, buffer, 1024);
 
         if (valread > 0) {
@@ -157,9 +161,8 @@ void * handle_new_connection(void * arg) {
             //FIXME sizeof(..) may differ on sender and receiver machine
             msgpack_unpack(buffer, sizeof(buffer), NULL, &mempool, &deserialized);
 
-            process_msg(msocket, deserialized);
+            res = process_msg(msocket, deserialized);
 
-            if (! strncmp(buffer, "BYE", 3)) break;
             //if (valread == 4) printf("msg from %d %d: %s %d\n", s.sin_addr, s.sin_port, buffer, sizeof(buffer));
 
         }
@@ -172,7 +175,11 @@ void * handle_new_connection(void * arg) {
     return;
 }
 
-void process_msg(int msocket, msgpack_object o) {
+/* process a message
+   return 0 when message was handled
+   return 1 on exit (close session)
+*/
+int process_msg(int msocket, msgpack_object o) {
     printf("\nprocess msg from: %d - type:%d\n\\\t->", msocket, o.type);
     //msgpack_object_print(stdout, o);
     //printf("\n\n");
@@ -232,6 +239,17 @@ void process_msg(int msocket, msgpack_object o) {
             /* TODO: should return -1 if session not found
                      should return -2 if sheet not found */
 
+        } else if (! strncmp(m.method, "bye", 3)) {
+            int res = close_session (m.id);
+            // return an OK msg to client
+            msgpack_pack_map(&pk, 1);
+            msgpack_pack_str(&pk, 3);
+            msgpack_pack_str_body(&pk, "ret", 3);
+            msgpack_pack_short(&pk, res);
+            send(msocket, sbuf.data, sbuf.size, 0 );
+            msgpack_sbuffer_clear(&sbuf);
+            return 1;
+
         } else if (! strncmp(m.method, "set_val", 7)) {
             printf("\nin server set_val\n");
             struct roman * cur_sesn = get_session (m.id);
@@ -275,10 +293,11 @@ void process_msg(int msocket, msgpack_object o) {
             // TODO
         }
     }
+    return 0;
 }
 
 // decompress message
-// will be removed later
+// will be removed later when the code generator is ready
 void decompress_msg(msgpack_object o, msg * m) {
         int size = o.via.map.size;
 
@@ -291,6 +310,7 @@ void decompress_msg(msgpack_object o, msg * m) {
 
                 if (! strncmp(p->key.via.str.ptr, "id", p->key.via.str.size)) m->id = p->val.via.u64;
                 else if (! strncmp(p->key.via.str.ptr, "row", p->key.via.str.size)) m->row = p->val.via.u64;
+                else if (! strncmp(p->key.via.str.ptr, "bye", p->key.via.str.size)) m->bye = p->val.via.u64;
                 else if (! strncmp(p->key.via.str.ptr, "col", p->key.via.str.size)) m->col = p->val.via.u64;
                 else if (! strncmp(p->key.via.str.ptr, "val", p->key.via.str.size)) m->val = p->val.via.f64;
                 else if (! strncmp(p->key.via.str.ptr, "method", p->key.via.str.size)) sprintf(m->method, "%.*s", p->val.via.str.size, p->val.via.str.ptr);
@@ -312,4 +332,3 @@ void decompress_msg(msgpack_object o, msg * m) {
             p++;
         }
 }
-

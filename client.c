@@ -19,6 +19,7 @@ void send_helo();
 void create_sheet();
 int get_val(int row, int col, float * res);
 int set_val(int row, int col, float val);
+int bye();
 
 int valread;
 char buffer[1024] = {0};
@@ -79,7 +80,6 @@ int main() {
     create_sheet();
 
     printf("\nsetting value\n");
-
     set_val(0, 0, 12.4);
 
     //sleep(5);
@@ -87,10 +87,51 @@ int main() {
     int res = get_val(0, 0, &f);
     if (res == 0) printf("\ngetting value: %f.\n", f);
 
+    printf("saying bye\n");
+    bye();
+
     msgpack_zone_destroy(&mempool);
     msgpack_sbuffer_destroy(&sbuf);
 
     return 0;
+}
+
+int bye() {
+    msgpack_pack_map(&pk, 2);
+
+    msgpack_pack_str(&pk, 2);
+    msgpack_pack_str_body(&pk, "id", 2);
+    msgpack_pack_short(&pk, id_session);
+
+    msgpack_pack_str(&pk, 6);
+    msgpack_pack_str_body(&pk, "method", 6);
+    msgpack_pack_str(&pk, 3);
+    msgpack_pack_str_body(&pk, "bye", 3);
+
+    send(sock, sbuf.data, sbuf.size, 0 );
+    msgpack_sbuffer_clear(&sbuf);
+
+    //get OK return status
+    valread = read(sock, buffer, 1024);
+    if (valread > 0) {
+        msgpack_object p;
+
+        //FIXME sizeof(..) may differ on sender and receiver machine
+        msgpack_unpack(buffer, sizeof(buffer), NULL, &mempool, &p);
+
+        msgpack_object_print(stdout, p);
+
+        // return 0
+        if ( p.type == MSGPACK_OBJECT_MAP && p.via.map.size == 2 &&
+           ! strncmp(p.via.map.ptr->key.via.str.ptr, "ret", 3) &&
+           ((int) p.via.map.ptr->val.via.u64 == 0)) {
+            return 0;
+        }
+    } else if (valread < 0) {
+        printf("nothing to read in socket\n");
+        return -2;
+    }
+    return -1;
 }
 
 // TODO should return 0 when 0 return status is received from server
