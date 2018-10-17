@@ -4,8 +4,9 @@
 #include <sys/types.h>
 #include <netinet/in.h>
 #include <msgpack.h>
-#include <fcntl.h>
+#include <fcntl.h> //open
 #include <pthread.h>
+#include <unistd.h> //close
 
 #include "session.h"
 #include "sheet.h"
@@ -117,6 +118,7 @@ int main(void) {
 
     }
 
+
     // wait for threads to finish
     printf("waiting for threads to finish");
     for (i=0; i<intLanzados; i++) {
@@ -126,6 +128,9 @@ int main(void) {
             return -1;
         }
     }
+
+    msgpack_zone_destroy(&mempool);
+    msgpack_sbuffer_destroy(&sbuf);
 
     close(server_fd);
     return 0;
@@ -167,12 +172,10 @@ void * handle_new_connection(void * arg) {
 
         }
     }
-    msgpack_zone_destroy(&mempool);
-    msgpack_sbuffer_destroy(&sbuf);
 
     close(msocket);
     printf("closed socket: %d\n", msocket);
-    return;
+    return NULL;
 }
 
 /* process a message
