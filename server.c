@@ -290,11 +290,11 @@ void decompress_msg(msgpack_object o, msg * m) {
                 //printf("key: %.*s\n", p->key.via.str.size, p->key.via.str.ptr);
 
                 if (! strncmp(p->key.via.str.ptr, "id", p->key.via.str.size)) m->id = p->val.via.u64;
-                if (! strncmp(p->key.via.str.ptr, "row", p->key.via.str.size)) m->row = p->val.via.u64;
-                if (! strncmp(p->key.via.str.ptr, "col", p->key.via.str.size)) m->col = p->val.via.u64;
-                if (! strncmp(p->key.via.str.ptr, "val", p->key.via.str.size)) m->val = p->val.via.f64;
-                if (! strncmp(p->key.via.str.ptr, "method", p->key.via.str.size)) sprintf(m->method, "%.*s", p->val.via.str.size, p->val.via.str.ptr);
-                if (! strncmp(p->key.via.str.ptr, "name", p->key.via.str.size)) sprintf(m->name, "%.*s", p->val.via.str.size, p->val.via.str.ptr);
+                else if (! strncmp(p->key.via.str.ptr, "row", p->key.via.str.size)) m->row = p->val.via.u64;
+                else if (! strncmp(p->key.via.str.ptr, "col", p->key.via.str.size)) m->col = p->val.via.u64;
+                else if (! strncmp(p->key.via.str.ptr, "val", p->key.via.str.size)) m->val = p->val.via.f64;
+                else if (! strncmp(p->key.via.str.ptr, "method", p->key.via.str.size)) sprintf(m->method, "%.*s", p->val.via.str.size, p->val.via.str.ptr);
+                else if (! strncmp(p->key.via.str.ptr, "name", p->key.via.str.size)) sprintf(m->name, "%.*s", p->val.via.str.size, p->val.via.str.ptr);
 
             } else if (p->key.type == MSGPACK_OBJECT_POSITIVE_INTEGER) {
                 //printf("key: %d\n", (int) p->key.via.u64);

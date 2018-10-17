@@ -18,11 +18,10 @@ int id_session, sock;
 void send_helo();
 void create_sheet();
 int get_val(int row, int col, float * res);
-void set_val(int row, int col, float val);
+int set_val(int row, int col, float val);
 
 int valread;
 char buffer[1024] = {0};
-char bufferw[1024] = {0};
 
 int main() {
 
@@ -79,13 +78,14 @@ int main() {
     printf("creating sheet\n");
     create_sheet();
 
-    printf("setting value\n");
+    printf("\nsetting value\n");
+
     set_val(0, 0, 12.4);
 
-    sleep(5);
+    //sleep(5);
     float f;
     int res = get_val(0, 0, &f);
-    if (res == 0) printf("\ngetting value: %f.", f);
+    if (res == 0) printf("\ngetting value: %f.\n", f);
 
     msgpack_zone_destroy(&mempool);
     msgpack_sbuffer_destroy(&sbuf);
@@ -93,7 +93,8 @@ int main() {
     return 0;
 }
 
-void set_val(int row, int col, float val) {
+// TODO should return 0 when 0 return status is received from server
+int set_val(int row, int col, float val) {
     msgpack_pack_map(&pk, 3);
 
     msgpack_pack_str(&pk, 2);
@@ -123,7 +124,7 @@ void set_val(int row, int col, float val) {
     send(sock, sbuf.data, sbuf.size, 0 );
     msgpack_sbuffer_clear(&sbuf);
 
-    //TODO: get OK return status
+    //get OK return status
     valread = read(sock, buffer, 1024);
     if (valread > 0) {
         msgpack_object p;
@@ -132,10 +133,21 @@ void set_val(int row, int col, float val) {
         msgpack_unpack(buffer, sizeof(buffer), NULL, &mempool, &p);
 
         msgpack_object_print(stdout, p);
+
+        // return 0
+        if ( p.type == MSGPACK_OBJECT_MAP && p.via.map.size == 2 &&
+           ! strncmp(p.via.map.ptr->key.via.str.ptr, "ret", 3) &&
+           ((int) p.via.map.ptr->val.via.u64 == 0)) {
+            return 0;
+        }
+    } else if (valread < 0) {
+        printf("nothing to read in socket\n");
+        return -2;
     }
+    return -1;
 }
 
-// return 0 when ok. -1 when not found/error
+// TODO return 0 when ok. -1 when not found/error
 int get_val(int row, int col, float * res) {
     int found=0;
 
@@ -170,15 +182,15 @@ int get_val(int row, int col, float * res) {
     if (result) printf("\nok init\n");
 
     // get value
-    valread = read(sock, bufferw, 1024);
+    valread = read(sock, buffer, 1024);
     if (valread > 0) {
-        memcpy(msgpack_unpacker_buffer(&unp), bufferw, 1024);
+        memcpy(msgpack_unpacker_buffer(&unp), buffer, 1024);
         msgpack_unpacker_buffer_consumed(&unp, 1024);
         msgpack_unpacked und;
         msgpack_unpack_return ret;
         msgpack_unpacked_init(&und);
         ret = msgpack_unpacker_next(&unp, &und);
-        if (ret == MSGPACK_UNPACK_SUCCESS) printf("\nok unpacked\n");
+        if (ret == MSGPACK_UNPACK_SUCCESS) printf("ok unpacked\n");
         msgpack_object q = und.data;
 
         msgpack_object_print(stdout, q);
@@ -198,6 +210,7 @@ int get_val(int row, int col, float * res) {
     return found ? 0 : -1;
 }
 
+// TODO return 0 when ok. -1 when not found/error
 void send_helo() {
     // pack HELO
     msgpack_pack_str(&pk, 4);
@@ -224,6 +237,7 @@ void send_helo() {
     }
 }
 
+// TODO return 0 when ok. -1 when not found/error
 void create_sheet() {
     //msgpack_sbuffer_clear(&sbuf);
     msgpack_pack_map(&pk, 3);
