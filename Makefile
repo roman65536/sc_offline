@@ -19,13 +19,13 @@ test1:  sc_lib test1.o rpsc.h html.so xlsx.so
 
 
 lua:	$(SC_LIB_O) lua.o
-	$(CC) $(CFLAGS) lua.o -o sc.so -shared -L./ -lsc -lm `pkg-config --libs libxml-2.0  libzip lua5.2` -L/home/romanp/Downloads/libxls-master/.libs -lxlsreader 
+	$(CC) $(CFLAGS) lua.o -o sc.so -shared -L./ -lsc -lm `pkg-config --libs libxml-2.0  libzip lua5.2` -L$(HOME)/Downloads/libxls-master/.libs -lxlsreader
 
-server:  server.c Parser.o session.o lua.o expr.o Lexer.o sheet.o calc.o function.o util.o rpsc.h slab.o
-	$(CC) $(CFLAGS) slab.o lua.o expr.o Parser.o Lexer.o sheet.o calc.o function.o session.o util.o server.c -o server -lmsgpackc -Lmsgpack-c/libmsgpackc.so.2.0.0 -lm `pkg-config --libs libxml-2.0 libzip lua5.2`
+server: sc_lib server.o rpsc.h
+	$(CC) $(CFLAGS) server.o -L./ -lsc -o server -lmsgpackc -Lmsgpack-c/libmsgpackc.so.2.0.0 -lm
 
-client:    client.c Parser.o lua.o expr.o Lexer.o sheet.o calc.o function.o session.o util.o rpsc.h slab.o
-	$(CC) $(CFLAGS) slab.o lua.o expr.o Parser.o Lexer.o sheet.o calc.o function.o session.o util.o client.c -o client -lmsgpackc -Lmsgpack-c/libmsgpackc.so.2.0.0 -lm `pkg-config --libs libxml-2.0 libzip lua5.2`
+client: sc_lib client.o
+	$(CC) $(CFLAGS) client.o -L./ -lsc -o client -lmsgpackc -Lmsgpack-c/libmsgpackc.so.2.0.0
 
 Lexer.c:	Lexer.l
 	flex Lexer.l
@@ -49,4 +49,4 @@ xlsx.so:		xlsx.c
 	$(CC) $(CFLAGS) -c $< -o $@ `pkg-config --cflags lua5.2`
 
 clean:
-	rm -f Lexer.c Parser.c Parser.h *.o gmon.out test1 server client html.so *.so
+	rm -f Lexer.c Parser.c Parser.h *.o gmon.out test1 server client html.so *.so *.a
