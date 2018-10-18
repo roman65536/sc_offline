@@ -25,7 +25,7 @@ a=require("sc")
 b=a.open("test")
 c=a.open("test1")
 b:loadxlsx("example/test.xlsx")
-c:loadxlsx("/tmp/test2.xlsx")
+c:loadxlsx("example/test2.xlsx")
 t=b:getsheets()
 for z,n in pairs(t)
  do
@@ -45,21 +45,22 @@ do
 e=a
 print ( " Database value " .. e)
 
-b:sheet("Roman")
-b:lsetnum(2,0,e)
+v=b:sheet("Roman")
+print( v  )
+b:lsetnum(0,2,e)
 b:recalc()
 
-val=b:lgetnum(2,1)
+val=b:lgetnum(1,2)
 --print(val)
-val=b:lgetnum(2,0)
+val=b:lgetnum(0,2)
 --print(string.format("%.5g",val))
-val=b:lgetnum(8,0)
+val=b:lgetnum(0,8)
 --print(string.format("%.5g",val))
-val=b:lgetnum(13,0)
+val=b:lgetnum(0,13)
 print(string.format("ret val %.5g",val))
 
 c:recalc()
-val=c:lgetnum(4,1)
+val=c:lgetnum(1,4)
 print(string.format("Return val %g\n",val))
 
 end

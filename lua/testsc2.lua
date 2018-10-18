@@ -14,6 +14,6 @@ end
 b:sheet("Tabelle1")
 b:recalc()
 
-val=b:lgetnum(4,0)
+val=b:lgetnum(0,4)
 print(string.format("ret val %.5g",val))
 

@@ -1,14 +1,25 @@
 # Makefile
 SHELL = /bin/bash
 FILES   = lua.c xlsx.c expr.c Parser.c Lexer.c sheet.c calc.c function.c session.c util.c test1.c server.c client.c html.c plugin.c slab.c
+SC_LIB_C   = lua.c xlsx.c expr.c Parser.c Lexer.c sheet.c calc.c function.c session.c util.c html.c plugin.c slab.c
+#SC_LIB_O   = lua.o xlsx.o expr.o Parser.o Lexer.o sheet.o calc.o function.o session.o util.o html.o plugin.o slab.o
+SC_LIB_O   = expr.o Parser.o Lexer.o sheet.o calc.o function.o session.o util.o plugin.o slab.o
 CC      = gcc
 #CFLAGS  = -O6 -DNEW -g -DSYSV3 -pg -fPIC -DCOMPAT_MODULE
 CFLAGS  = -pg -g -DSYSV3 -DNEW  -fPIC -DCOMPAT_MODULE  -fvisibility=default -export-dynamic -ldl -lpthread
 
-all:	test1 server client html.so xlsx.so
+all:	html.so xlsx.so test1 server client
 
-test1:   Parser.o lua.o expr.o Lexer.o sheet.o calc.o function.o session.o util.o test1.o plugin.o slab.o rpsc.h html.so xlsx.so
-	$(CC) $(CFLAGS) lua.o  expr.o Parser.o Lexer.o sheet.o calc.o function.o session.o util.o test1.o plugin.o slab.o -lm `pkg-config --libs libxml-2.0 libzip lua5.2` -o test1
+
+sc_lib: $(SC_LIB_O)
+	ar -cvq libsc.a  $(SC_LIB_O)
+
+test1:  sc_lib test1.o rpsc.h html.so xlsx.so
+	$(CC) $(CFLAGS) test1.o -L./ -lsc -lm `pkg-config --libs libxml-2.0 libzip lua5.2` -o test1
+
+
+lua:	$(SC_LIB_O) lua.o
+	$(CC) $(CFLAGS) lua.o -o sc.so -shared -L./ -lsc -lm `pkg-config --libs libxml-2.0  libzip lua5.2` -L/home/romanp/Downloads/libxls-master/.libs -lxlsreader 
 
 server:  server.c Parser.o session.o lua.o expr.o Lexer.o sheet.o calc.o function.o util.o rpsc.h slab.o
 	$(CC) $(CFLAGS) slab.o lua.o expr.o Parser.o Lexer.o sheet.o calc.o function.o session.o util.o server.c -o server -lmsgpackc -Lmsgpack-c/libmsgpackc.so.2.0.0 -lm `pkg-config --libs libxml-2.0 libzip lua5.2`
