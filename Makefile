@@ -24,8 +24,8 @@ lua:	$(SC_LIB_O) lua.o
 server: sc_lib server.o rpsc.h
 	$(CC) $(CFLAGS) server.o -L./ -lsc -o server -lmsgpackc -Lmsgpack-c/libmsgpackc.so.2.0.0 -lm
 
-client: sc_lib client.o
-	$(CC) $(CFLAGS) client.o -L./ -lsc -o client -lmsgpackc -Lmsgpack-c/libmsgpackc.so.2.0.0
+client: client.o
+	$(CC) $(CFLAGS) client.o -L./ -o client -lmsgpackc -Lmsgpack-c/libmsgpackc.so.2.0.0
 
 Lexer.c:	Lexer.l
 	flex Lexer.l
