@@ -7,14 +7,16 @@
 #include <fcntl.h> //open
 #include <pthread.h>
 #include <unistd.h> //close
+#include <signal.h> // for SIGINT
 
 #include "session.h"
 #include "sheet.h"
 #include "rpsc.h"
 
 #define PORT 1234
-#define MAXCLIENTS 30
+#define MAXCLIENTS 3
 
+int got_SIGINT = 0;
 void * handle_new_connection(void * arg);
 int process_msg(int msocket, msgpack_object o);
 
@@ -47,7 +49,13 @@ typedef struct {
 
 void decompress_msg(msgpack_object o, msg * m);
 
+void SIGINT_handler(int dummy) {
+    got_SIGINT = 1;
+    printf("Got SIGINT. Shutting down server\n");
+}
+
 int main(void) {
+    signal(SIGINT, SIGINT_handler);
     int opt = 1;
     int addrlen = sizeof(address);
     int intLanzados = 0;
@@ -83,7 +91,7 @@ int main(void) {
     msgpack_zone_init(&mempool, 1024);
 
     // loop
-    while (1) {
+    while (! got_SIGINT) {
 
         // check number of clients
         if (listen(server_fd, MAXCLIENTS) < 0) {
@@ -91,9 +99,13 @@ int main(void) {
             return -1;
         }
 
-        if ((msocket = accept(server_fd, (struct sockaddr *) &address, (socklen_t*) &addrlen))<0) {
-            printf("accept");
+        if(fcntl(server_fd, F_SETFL, O_NONBLOCK) < 0) {
+            printf("!! cannot set socket in non blocking mode");
             return -1;
+        }
+        if ((msocket = accept(server_fd, (struct sockaddr *) &address, (socklen_t*) &addrlen))<0) {
+            continue;
+            //return -1;
         }
         printf("new connection - address:%d port:%d\n", address.sin_addr, address.sin_port);
 
