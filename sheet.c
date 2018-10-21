@@ -7,7 +7,7 @@
 #include "sheet.h"
 
 
-__attribute__ ((visibility ("default"))) extern  struct Ent * lookat(struct Sheet * sh, int row, int col) {
+struct Ent * lookat(struct Sheet * sh, int row, int col) {
     register struct Ent ***tbl=sh->tbl;
     register struct Ent **pp;
     struct Ent *tmp;
@@ -88,6 +88,29 @@ struct Sheet * Search_sheet(struct roman *doc, char *name) {
 
     return 0;
 }
+
+
+void delete_sheet(struct roman *doc, struct Sheet *sh)
+{
+    int a;
+    struct Ent *ent;
+    REMOVE(sh,(doc->first_sh),(doc->last_sh),next,prev);
+    for(a=0;a<HASH_NR;a++)
+	{
+	    if(sh->hash[a] !=0 )
+		for(ent=sh->hash[a]; ent !=0; ent=ent->n_hash){
+		    if(ent->label !=0 ) free(ent->label);
+		    if(ent->formula !=0 ) free(ent->formula);
+		    /* free_exp add here */
+		    if(ent->exp !=0 ) deleteExpression(ent->exp);
+		    objs_cache_free(&sh->cache_ent,ent);
+		}
+	}
+    objs_cache_destroy(&sh->cache_ent);
+    free(sh);
+
+}
+
 
 int convert(int * col, int * row, char * s, int size) {
     int val, i;

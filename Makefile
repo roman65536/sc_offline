@@ -12,7 +12,7 @@ all:	html.so xlsx.so test1 server client
 
 
 sc_lib: $(SC_LIB_O)
-	ar -cvq libsc.a  $(SC_LIB_O)
+	ar -cvr libsc.a  $(SC_LIB_O)
 
 test1:  sc_lib test1.o rpsc.h html.so xlsx.so
 	$(CC) $(CFLAGS) test1.o -L./ -lsc -lm `pkg-config --libs libxml-2.0 libzip lua5.2` -o test1

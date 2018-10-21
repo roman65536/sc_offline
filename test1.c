@@ -95,8 +95,11 @@ for(a=0;a<1000000;a++)
     e1 = lookat(Search_sheet(p, "Roman"), 13, 2);
     printf("result :: %f !!\n", e1->val);
 
-write_plugin(p,"test123.html","html");
+    write_plugin(p,"test123.html","html");
     p->open=0;
+    
+    delete_sheet(p,Search_sheet(p,"Roman"));
+
     return 0;
 }
 
