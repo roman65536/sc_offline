@@ -465,7 +465,9 @@ xmlChar * xpath = "//a:workbook/a:sheets/*";
             cur=result->nodesetval->nodeTab[a];
             struct Sheet * this_sh;
             this_sh=new_sheet(p,xmlGetProp(cur,"name"));
+#ifndef NEW
             growtbl(this_sh,GROWNEW, 0, 0);
+#endif
             p->cur_sh=this_sh;
         }
 
