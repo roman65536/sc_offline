@@ -19,6 +19,7 @@
 
 #include "Parser.h"
 #include "Lexer.h"
+#include "sheet.h"
 
 
 int growtbl(struct Sheet * sh,int rowcol, int toprow, int topcol);
