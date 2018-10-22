@@ -242,8 +242,23 @@ int process_msg(int msocket, msgpack_object o) {
         if (! strncmp(m.method, "create_sheet", 12)) {
             struct roman * cur_sesn = get_session (m.id);
             struct Sheet * sh = new_sheet(cur_sesn, m.name);
-            growtbl(sh, GROWNEW, 0, 0);
+            //growtbl(sh, GROWNEW, 0, 0);       //   ONLY is OLD is defined
             cur_sesn->cur_sh = sh;
+            // return an OK msg to client
+            msgpack_pack_map(&pk, 1);
+            msgpack_pack_str(&pk, 3);
+            msgpack_pack_str_body(&pk, "ret", 3);
+            msgpack_pack_short(&pk, 0);
+            send(msocket, sbuf.data, sbuf.size, 0 );
+            msgpack_sbuffer_clear(&sbuf);
+            /* TODO: should return -1 if session not found
+                     should return -2 if sheet not found */
+
+        } else if (! strncmp(m.method, "delete_sheet", 12)) {
+            struct roman * cur_sesn = get_session (m.id);
+            struct Sheet * sh = Search_sheet(cur_sesn, m.name);
+            delete_sheet(cur_sesn, sh);
+
             // return an OK msg to client
             msgpack_pack_map(&pk, 1);
             msgpack_pack_str(&pk, 3);

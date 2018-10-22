@@ -17,6 +17,7 @@ int id_session, sock;
 
 void send_helo();
 void create_sheet();
+void remove_sheet();
 int get_val(int row, int col, float * res);
 int set_val(int row, int col, float val);
 int bye();
@@ -87,7 +88,10 @@ int main() {
     int res = get_val(0, 0, &f);
     if (res == 0) printf("\ngetting value: %f.\n", f);
 
-    printf("saying bye\n");
+    printf("deleting sheet\n");
+    remove_sheet();
+
+    printf("\nsaying bye\n");
     bye();
 
     msgpack_zone_destroy(&mempool);
@@ -307,4 +311,35 @@ void create_sheet() {
         msgpack_unpack(buffer, sizeof(buffer), NULL, &mempool, &o);
         msgpack_object_print(stdout, o);
     }
+}
+
+// TODO return 0 when ok. -1 when not found/error
+void remove_sheet() {
+    msgpack_pack_map(&pk, 3);
+    msgpack_pack_str(&pk, 2);
+    msgpack_pack_str_body(&pk, "id", 2);
+    msgpack_pack_int(&pk, id_session);
+    msgpack_pack_str(&pk, 6);
+    msgpack_pack_str_body(&pk, "method", 6);
+    msgpack_pack_str(&pk, 12);
+    msgpack_pack_str_body(&pk, "delete_sheet", 12);
+    msgpack_pack_str(&pk, 6);
+    msgpack_pack_str_body(&pk, "params", 6);
+    msgpack_pack_map(&pk, 1);
+    msgpack_pack_str(&pk, 4);
+    msgpack_pack_str_body(&pk, "name", 4);
+    msgpack_pack_str(&pk, 6);
+    msgpack_pack_str_body(&pk, "sheet1", 6);
+
+    send(sock, sbuf.data, sbuf.size, 0 );
+    msgpack_sbuffer_clear(&sbuf);
+
+    // get OK
+    valread = read(sock, buffer, 1024);
+    if (valread > 0) {
+        msgpack_object o;
+        msgpack_unpack(buffer, sizeof(buffer), NULL, &mempool, &o);
+        msgpack_object_print(stdout, o);
+    }
+    return;
 }
