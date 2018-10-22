@@ -49,4 +49,4 @@ xlsx.so:		xlsx.c
 	$(CC) $(CFLAGS) -c $< -o $@ `pkg-config --cflags lua5.2`
 
 clean:
-	rm -f Lexer.c Parser.c Parser.h *.o gmon.out test1 server client html.so *.so *.a
+	rm -f Lexer.c Lexer.h Parser.c Parser.h *.o gmon.out test1 server client html.so *.so *.a

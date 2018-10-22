@@ -18,12 +18,11 @@
 
 int got_SIGINT = 0;
 void * handle_new_connection(void * arg);
-int process_msg(int msocket, msgpack_object o);
+int process_msg(int msocket, msgpack_object o, msgpack_sbuffer * sbuf);
 
 struct sockaddr_in address;
 int server_fd;
 
-msgpack_sbuffer sbuf;
 msgpack_packer pk;
 msgpack_zone mempool;
 
@@ -142,7 +141,6 @@ int main(void) {
     }
 
     msgpack_zone_destroy(&mempool);
-    msgpack_sbuffer_destroy(&sbuf);
 
     close(server_fd);
     return 0;
@@ -155,6 +153,7 @@ void * handle_new_connection(void * arg) {
     char buffer[1024] = {0};
     printf("new   thread: %d\n", msocket);
     int valread;
+    msgpack_sbuffer sbuf;
 
     msgpack_sbuffer_init(&sbuf); /* msgpack::sbuffer */
     msgpack_packer_init(&pk, &sbuf, msgpack_sbuffer_write); /* initialize packer */
@@ -178,7 +177,7 @@ void * handle_new_connection(void * arg) {
             //FIXME sizeof(..) may differ on sender and receiver machine
             msgpack_unpack(buffer, sizeof(buffer), NULL, &mempool, &deserialized);
 
-            res = process_msg(msocket, deserialized);
+            res = process_msg(msocket, deserialized, &sbuf);
 
             //if (valread == 4) printf("msg from %d %d: %s %d\n", s.sin_addr, s.sin_port, buffer, sizeof(buffer));
 
@@ -187,6 +186,7 @@ void * handle_new_connection(void * arg) {
 
     close(msocket);
     printf("closed socket: %d\n", msocket);
+    msgpack_sbuffer_destroy(&sbuf);
     return NULL;
 }
 
@@ -194,7 +194,7 @@ void * handle_new_connection(void * arg) {
    return 0 when message was handled
    return 1 on exit (close session)
 */
-int process_msg(int msocket, msgpack_object o) {
+int process_msg(int msocket, msgpack_object o, msgpack_sbuffer * sbuf) {
     printf("\nprocess msg from: %d - type:%d\n\\\t->", msocket, o.type);
     //msgpack_object_print(stdout, o);
     //printf("\n\n");
@@ -210,8 +210,8 @@ int process_msg(int msocket, msgpack_object o) {
         msgpack_pack_str(&pk, 2);
         msgpack_pack_str_body(&pk, "id", 2);
         msgpack_pack_int(&pk, id_session);
-        send(msocket, sbuf.data, sbuf.size, 0 );
-        msgpack_sbuffer_clear(&sbuf);
+        send(msocket, sbuf->data, sbuf->size, 0 );
+        msgpack_sbuffer_clear(sbuf);
 
     // handle a message that comes in a map
     } else if (o.type == MSGPACK_OBJECT_MAP) {
@@ -249,8 +249,8 @@ int process_msg(int msocket, msgpack_object o) {
             msgpack_pack_str(&pk, 3);
             msgpack_pack_str_body(&pk, "ret", 3);
             msgpack_pack_short(&pk, 0);
-            send(msocket, sbuf.data, sbuf.size, 0 );
-            msgpack_sbuffer_clear(&sbuf);
+            send(msocket, sbuf->data, sbuf->size, 0 );
+            msgpack_sbuffer_clear(sbuf);
             /* TODO: should return -1 if session not found
                      should return -2 if sheet not found */
 
@@ -264,8 +264,8 @@ int process_msg(int msocket, msgpack_object o) {
             msgpack_pack_str(&pk, 3);
             msgpack_pack_str_body(&pk, "ret", 3);
             msgpack_pack_short(&pk, 0);
-            send(msocket, sbuf.data, sbuf.size, 0 );
-            msgpack_sbuffer_clear(&sbuf);
+            send(msocket, sbuf->data, sbuf->size, 0 );
+            msgpack_sbuffer_clear(sbuf);
             /* TODO: should return -1 if session not found
                      should return -2 if sheet not found */
 
@@ -276,8 +276,8 @@ int process_msg(int msocket, msgpack_object o) {
             msgpack_pack_str(&pk, 3);
             msgpack_pack_str_body(&pk, "ret", 3);
             msgpack_pack_short(&pk, res);
-            send(msocket, sbuf.data, sbuf.size, 0 );
-            msgpack_sbuffer_clear(&sbuf);
+            send(msocket, sbuf->data, sbuf->size, 0 );
+            msgpack_sbuffer_clear(sbuf);
             return 1;
 
         } else if (! strncmp(m.method, "set_val", 7)) {
@@ -293,8 +293,8 @@ int process_msg(int msocket, msgpack_object o) {
             msgpack_pack_str_body(&pk, "ret", 3);
             msgpack_pack_short(&pk, 0);
 
-            send(msocket, sbuf.data, sbuf.size, 0 );
-            msgpack_sbuffer_clear(&sbuf);
+            send(msocket, sbuf->data, sbuf->size, 0 );
+            msgpack_sbuffer_clear(sbuf);
             /* TODO: should return -1 if session not found
                      should return -2 if sheet not found */
             printf("\nfin server set_val\n");
@@ -313,8 +313,8 @@ int process_msg(int msocket, msgpack_object o) {
             msgpack_pack_str_body(&pk, "val", 3);
             msgpack_pack_float(&pk, e1->val);
 
-            send(msocket, sbuf.data, sbuf.size, 0 );
-            msgpack_sbuffer_clear(&sbuf);
+            send(msocket, sbuf->data, sbuf->size, 0 );
+            msgpack_sbuffer_clear(sbuf);
             /* TODO: should return -1 if session not found
                      should return -2 if sheet not found */
             printf("\nfin server get_val\n");
