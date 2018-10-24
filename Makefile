@@ -8,7 +8,7 @@ CC      = gcc
 #CFLAGS  = -O6 -DNEW -g -DSYSV3 -pg -fPIC -DCOMPAT_MODULE
 CFLAGS  = -pg -g -DSYSV3 -DNEW  -fPIC -DCOMPAT_MODULE  -fvisibility=default -export-dynamic -ldl -lpthread
 
-all:	html.so xlsx.so test1 server client
+all:	html.so xlsx.so test1 server client tui
 
 
 sc_lib: $(SC_LIB_O)

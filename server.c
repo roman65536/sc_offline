@@ -1,3 +1,4 @@
+/* INCLUDES */
 #include <stdio.h>
 #include <sys/socket.h>
 #include <string.h>
@@ -8,48 +9,54 @@
 #include <pthread.h>
 #include <unistd.h> //close
 #include <signal.h> // for SIGINT
-
 #include "session.h"
 #include "sheet.h"
 #include "rpsc.h"
 
+/* DEFINES */
 #define PORT 1234
 #define MAXCLIENTS 3
 
-int got_SIGINT = 0;
-void * handle_new_connection(void * arg);
-int process_msg(int msocket, msgpack_object o, msgpack_sbuffer * sbuf);
-
-struct sockaddr_in address;
-int server_fd;
-
-msgpack_packer pk;
-msgpack_zone mempool;
-
+/* STRUCTS */
 /* Used as argument to thread_start() */
 struct thread_info {
-       pthread_t thread_id;        /* ID returned by pthread_create() */
-       int       msocket;          /* socket descriptor */
-       int exit;                   /* set it to 1 to exit thread */
-       };
-
+    pthread_t thread_id;        /* ID returned by pthread_create() */
+    int       msocket;          /* socket descriptor */
+    int exit;                   /* set it to 1 to exit thread */
+};
 
 // this is a dirty struct to handle a message
 // will be removed later on when code generator is ready
 typedef struct {
-    int id;
-    char method[20];
-    char name[20]; //sheet_name
-    int row;
-    int col;
-    double val;
-    short bye;
-    char label[20]; //label
-    short flags;
-    short formula[100];
+    int * id;
+    char * method;
+    char * name;      // sheet_name
+    int * row;
+    int * col;
+    short * bye;
+    double * val;     // ent value
+    char * label;     // ent label
+    short * flags;    // ent flags
+    short * formula;  // ent formula
 } msg;
 
+/* PROTOTYPES */
+void * handle_new_connection(void * arg);
+int process_msg(int msocket, msgpack_object o, msgpack_sbuffer * sbuf);
+void initialize_msg(msg * m);
+void free_msg(msg * m);
 void decompress_msg(msgpack_object o, msg * m);
+void debug_msg(msg * m);
+
+/* GLOBAL VARIABLES */
+msgpack_packer pk;
+msgpack_zone mempool;
+int got_SIGINT = 0;
+struct sockaddr_in address;
+int server_fd;
+
+
+/************************************************/
 
 void SIGINT_handler(int dummy) {
     got_SIGINT = 1;
@@ -225,44 +232,28 @@ int process_msg(int msocket, msgpack_object o, msgpack_sbuffer * sbuf) {
         msgpack_object_kv * pend = o.via.map.ptr + o.via.map.size;
 
         msg m;
-        m.method[0]='\0';
-        m.name[0]='\0';
-        m.id  = -1;
-        m.row = -1;
-        m.col = -1;
-        m.val = -1;      // val should be int * type
-        m.label[0] = '\0';    // should be char * type
-        m.formula[0] = '\0';  // should be char * type
-        m.flags = -1;    // should be short * type
-
+        initialize_msg(&m);
         decompress_msg(o, &m);
-
-        printf("debug:\n");
-        if (m.id != -1)       printf("m.id: %d\n", m.id);
-        if (m.row != -1)      printf("m.row: %d\n", m.row);
-        if (m.col != -1)      printf("m.col: %d\n", m.col);
-        if (strlen(m.method)) printf("m.method: %s\n", m.method);
-        if (strlen(m.method)) printf("m.name: %s\n", m.name);
-        printf("m.val: %f\n", m.val);
+        debug_msg(&m);
 
         if (! strncmp(m.method, "create_sheet", 12)) {
-            struct roman * cur_sesn = get_session (m.id);
+            struct roman * cur_sesn = get_session(*(m.id));
             struct Sheet * sh = new_sheet(cur_sesn, m.name);
-            //growtbl(sh, GROWNEW, 0, 0);       //   ONLY is OLD is defined
+            /* TODO: should return -1 if session not found */
+            //growtbl(sh, GROWNEW, 0, 0);       /* ONLY if OLD is defined */
             cur_sesn->cur_sh = sh;
-            // return an OK msg to client
             msgpack_pack_map(&pk, 1);
             msgpack_pack_str(&pk, 3);
-            msgpack_pack_str_body(&pk, "ret", 3);
+            msgpack_pack_str_body(&pk, "ret", 3); /* return an OK msg to client */
             msgpack_pack_short(&pk, 0);
             send(msocket, sbuf->data, sbuf->size, 0 );
             msgpack_sbuffer_clear(sbuf);
-            /* TODO: should return -1 if session not found
-                     should return -2 if sheet not found */
 
         } else if (! strncmp(m.method, "delete_sheet", 12)) {
-            struct roman * cur_sesn = get_session (m.id);
+            struct roman * cur_sesn = get_session (*(m.id));
             struct Sheet * sh = Search_sheet(cur_sesn, m.name);
+            /* TODO: should return -1 if session not found
+                     should return -2 if sheet not found */
             delete_sheet(cur_sesn, sh);
 
             // return an OK msg to client
@@ -272,11 +263,9 @@ int process_msg(int msocket, msgpack_object o, msgpack_sbuffer * sbuf) {
             msgpack_pack_short(&pk, 0);
             send(msocket, sbuf->data, sbuf->size, 0 );
             msgpack_sbuffer_clear(sbuf);
-            /* TODO: should return -1 if session not found
-                     should return -2 if sheet not found */
 
         } else if (! strncmp(m.method, "bye", 3)) {
-            int res = close_session (m.id);
+            int res = close_session (*(m.id));
             // return an OK msg to client
             msgpack_pack_map(&pk, 1);
             msgpack_pack_str(&pk, 3);
@@ -288,10 +277,12 @@ int process_msg(int msocket, msgpack_object o, msgpack_sbuffer * sbuf) {
 
         } else if (! strncmp(m.method, "set_val", 7)) {
             printf("\nin server set_val\n");
-            struct roman * cur_sesn = get_session (m.id);
-            struct Ent * t = lookat(cur_sesn->cur_sh, m.row, m.col); // USES CURRENT SHEET
+            struct roman * cur_sesn = get_session (*(m.id));
+            struct Ent * t = lookat(cur_sesn->cur_sh, *(m.row), *(m.col)); // USES CURRENT SHEET
+            /* TODO: should return -1 if session not found
+                     should return -2 if sheet not found */
             t->flag |= VAL;
-            t->val = m.val;
+            t->val = *(m.val);
 
             // return an OK msg to client
             msgpack_pack_map(&pk, 1);
@@ -301,14 +292,14 @@ int process_msg(int msocket, msgpack_object o, msgpack_sbuffer * sbuf) {
 
             send(msocket, sbuf->data, sbuf->size, 0 );
             msgpack_sbuffer_clear(sbuf);
-            /* TODO: should return -1 if session not found
-                     should return -2 if sheet not found */
             printf("\nfin server set_val\n");
 
         } else if (! strncmp(m.method, "get_val", 7)) {
             printf("\nin server get_val\n");
-            struct roman * cur_sesn = get_session (m.id);
-            struct Ent * e1 = lookat(cur_sesn->cur_sh, m.row, m.col);
+            struct roman * cur_sesn = get_session (*(m.id));
+            struct Ent * e1 = lookat(cur_sesn->cur_sh, *(m.row), *(m.col));
+            /* TODO: should return -1 if session not found
+                     should return -2 if sheet not found */
             printf("e1->val: %f", e1->val);
 
             msgpack_pack_map(&pk, 2);
@@ -321,49 +312,63 @@ int process_msg(int msocket, msgpack_object o, msgpack_sbuffer * sbuf) {
 
             send(msocket, sbuf->data, sbuf->size, 0 );
             msgpack_sbuffer_clear(sbuf);
-            /* TODO: should return -1 if session not found
-                     should return -2 if sheet not found */
             printf("\nfin server get_val\n");
 
         } else if (! strncmp(m.method, "get_cell", 8)) {
             printf("\nin server get_cell\n");
-            struct roman * cur_sesn = get_session (m.id);
-            struct Ent * e1 = lookat(cur_sesn->cur_sh, m.row, m.col);
+            struct roman * cur_sesn = get_session (*(m.id));
+            struct Ent * e1 = lookat(cur_sesn->cur_sh, *(m.row), *(m.col));
+            /* TODO: should return -1 if session not found
+                     should return -2 if sheet not found */
 
-            msgpack_pack_map(&pk, 5);
+            int count = 0; /* we need to send the number of (key,values) in the first place */
+            if (e1->val)     count++;
+            if (e1->label)   count++;
+            if (e1->formula) count++;
+            if (e1->label)   count++;
+
+            msgpack_pack_map(&pk, count+1);
 
             msgpack_pack_str(&pk, 3);
             msgpack_pack_str_body(&pk, "ret", 3);
             msgpack_pack_short(&pk, 0);
 
-            msgpack_pack_str(&pk, 3);
-            msgpack_pack_str_body(&pk, "val", 3);
-            msgpack_pack_float(&pk, e1->val);
+            // only pack whats is needed
+            if (e1->val) {
+                msgpack_pack_str(&pk, 3);
+                msgpack_pack_str_body(&pk, "val", 3);
+                msgpack_pack_float(&pk, e1->val);
+            }
 
-            msgpack_pack_str(&pk, 5);
-            msgpack_pack_str_body(&pk, "label", 7);
-            msgpack_pack_str(&pk, e1->label != NULL ? strlen(e1->label) : 0);
-            msgpack_pack_str_body(&pk, e1->label != NULL ? e1->label : "", e1->label != NULL ? strlen(e1->label) : 0);
+            if (e1->label) {
+                msgpack_pack_str(&pk, 5);
+                msgpack_pack_str_body(&pk, "label", 7);
+                msgpack_pack_str(&pk, e1->label != NULL ? strlen(e1->label) : 0);
+                msgpack_pack_str_body(&pk, e1->label != NULL ? e1->label : "", e1->label != NULL ? strlen(e1->label) : 0);
+            }
 
-            msgpack_pack_str(&pk, 7);
-            msgpack_pack_str_body(&pk, "formula", 7);
-            msgpack_pack_str(&pk, e1->formula != NULL ? strlen(e1->formula) : 0);
-            msgpack_pack_str_body(&pk, e1->formula != NULL ? e1->formula : "", e1->formula != NULL ? strlen(e1->formula) : 0);
+            if (e1->formula) {
+                msgpack_pack_str(&pk, 7);
+                msgpack_pack_str_body(&pk, "formula", 7);
+                msgpack_pack_str(&pk, e1->formula != NULL ? strlen(e1->formula) : 0);
+                msgpack_pack_str_body(&pk, e1->formula != NULL ? e1->formula : "", e1->formula != NULL ? strlen(e1->formula) : 0);
+            }
 
-            msgpack_pack_str(&pk, 4);
-            msgpack_pack_str_body(&pk, "flag", 4);
-            msgpack_pack_short(&pk, e1->flag);
+            if (e1->flag) {
+                msgpack_pack_str(&pk, 4);
+                msgpack_pack_str_body(&pk, "flag", 4);
+                msgpack_pack_short(&pk, e1->flag);
+            }
 
             send(msocket, sbuf->data, sbuf->size, 0 );
             msgpack_sbuffer_clear(sbuf);
 
-            /* TODO: should return -1 if session not found
-                     should return -2 if sheet not found */
             printf("\nfin server get_cell\n");
 
         } else if (! strncmp("recalc", m.method, 6)) {
             // TODO
         }
+        free_msg(&m);
     }
     return 0;
 }
@@ -380,13 +385,28 @@ void decompress_msg(msgpack_object o, msg * m) {
             if (p->key.type == MSGPACK_OBJECT_STR) {
                 //printf("key: %.*s\n", p->key.via.str.size, p->key.via.str.ptr);
 
-                if (! strncmp(p->key.via.str.ptr, "id", p->key.via.str.size)) m->id = p->val.via.u64;
-                else if (! strncmp(p->key.via.str.ptr, "row", p->key.via.str.size)) m->row = p->val.via.u64;
-                else if (! strncmp(p->key.via.str.ptr, "bye", p->key.via.str.size)) m->bye = p->val.via.u64;
-                else if (! strncmp(p->key.via.str.ptr, "col", p->key.via.str.size)) m->col = p->val.via.u64;
-                else if (! strncmp(p->key.via.str.ptr, "val", p->key.via.str.size)) m->val = p->val.via.f64;
-                else if (! strncmp(p->key.via.str.ptr, "method", p->key.via.str.size)) sprintf(m->method, "%.*s", p->val.via.str.size, p->val.via.str.ptr);
-                else if (! strncmp(p->key.via.str.ptr, "name", p->key.via.str.size)) sprintf(m->name, "%.*s", p->val.via.str.size, p->val.via.str.ptr);
+                if (! strncmp(p->key.via.str.ptr, "id", p->key.via.str.size)) {
+                    m->id = (int *) malloc(sizeof(int));
+                    *(m->id) = p->val.via.u64;
+                } else if (! strncmp(p->key.via.str.ptr, "row", p->key.via.str.size)) {
+                    m->row = (int *) malloc(sizeof(int));
+                    *(m->row) = p->val.via.u64;
+                } else if (! strncmp(p->key.via.str.ptr, "col", p->key.via.str.size)) {
+                    m->col = (int *) malloc(sizeof(int));
+                    *(m->col) = p->val.via.u64;
+                } else if (! strncmp(p->key.via.str.ptr, "bye", p->key.via.str.size)) {
+                    m->bye = (short *) malloc(sizeof(short));
+                    *(m->bye) = p->val.via.u64;
+                } else if (! strncmp(p->key.via.str.ptr, "val", p->key.via.str.size)) {
+                    m->val = (double *) malloc(sizeof(double));
+                    *(m->val) = p->val.via.f64;
+                } else if (! strncmp(p->key.via.str.ptr, "method", p->key.via.str.size)) {
+                    m->method = (char *) malloc(sizeof(char) * (p->val.via.str.size + 1));
+                    sprintf(m->method, "%.*s", p->val.via.str.size, p->val.via.str.ptr);
+                } else if (! strncmp(p->key.via.str.ptr, "name", p->key.via.str.size)) {
+                    m->name = (char *) malloc(sizeof(char) * (p->val.via.str.size + 1));
+                    sprintf(m->name, "%.*s", p->val.via.str.size, p->val.via.str.ptr);
+                }
 
             } else if (p->key.type == MSGPACK_OBJECT_POSITIVE_INTEGER) {
                 //printf("key: %d\n", (int) p->key.via.u64);
@@ -403,4 +423,42 @@ void decompress_msg(msgpack_object o, msg * m) {
             }
             p++;
         }
+}
+
+void initialize_msg(msg * m) {
+    m->method = NULL;
+    m->name = NULL;
+    m->id  = NULL;
+    m->row = NULL;
+    m->col = NULL;
+    m->val = NULL;
+    m->label = NULL;
+    m->formula = NULL;
+    m->flags = NULL;
+    return;
+}
+
+void free_msg(msg * m) {
+    if (m->method != NULL)  free(m->method);
+    if (m->name != NULL)    free(m->name);
+    if (m->id  != NULL)     free(m->id);
+    if (m->row != NULL)     free(m->row);
+    if (m->col != NULL)     free(m->col);
+    if (m->val != NULL)     free(m->val);
+    if (m->label != NULL)   free(m->label);
+    if (m->formula != NULL) free(m->formula);
+    if (m->flags != NULL)   free(m->flags);
+    return;
+}
+
+void debug_msg(msg * m) {
+    printf("debug:\n");
+    if (m->id != NULL)       printf("m.id: %d\n", *(m->id));
+    if (m->row != NULL)      printf("m.row: %d\n", *(m->row));
+    if (m->col != NULL)      printf("m.col: %d\n", *(m->col));
+    if (m->method != NULL)   printf("m.method: %s\n", (m->method));
+    if (m->name != NULL)     printf("m.name: %s\n", (m->name));
+    if (m->val != NULL)      printf("m.val: %f\n", *(m->val));
+    if (m->label != NULL)    printf("m.label: %s\n", (m->label));
+    if (m->flags != NULL)    printf("m.flags: %d\n", *(m->flags));
 }

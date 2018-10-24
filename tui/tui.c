@@ -75,7 +75,6 @@ int rescol = RESCOL; /* terminal columns reserved for displaying row numbers */
 int shall_quit = 0;
 int offscr_sc_rows = 0, offscr_sc_cols = 0; /* off screen spreadsheet rows and columns */
 
-
 msgpack_sbuffer sbuf; /* buffer */
 msgpack_packer pk;    /* packer */
 msgpack_zone mempool;
@@ -83,6 +82,7 @@ int id_session, sock;
 int valread;
 char buffer[1024] = {0};
 
+/***************************************************************************/
 int connect_to_server() {
     struct sockaddr_in address;
     struct sockaddr_in serv_addr;
@@ -177,7 +177,7 @@ int main (int argc, char ** argv) {
     // stop ncurses
     ui_stop_screen();
 
-    // send bye to server");
+    // send bye to server
     bye();
 
     // free structures
@@ -477,6 +477,7 @@ void ui_show_content(WINDOW * win, int mxrow, int mxcol) {
         msgpack_object q = und.data;
 
         //msgpack_object_print(stdout, q);
+        // TODO pack everything in a msg struct before the following evaluation
 
         if (
            q.type == MSGPACK_OBJECT_MAP &&
