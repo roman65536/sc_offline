@@ -1,6 +1,6 @@
 # Makefile
 SHELL = /bin/bash
-FILES   = lua.c xlsx.c expr.c Parser.c Lexer.c sheet.c calc.c function.c session.c util.c test1.c server.c client.c html.c plugin.c slab.c
+FILES   = lua.c xlsx.c expr.c Parser.c Lexer.c sheet.c calc.c function.c session.c util.c test1.c server.c client.c html.c plugin.c slab.c tui/*.c
 SC_LIB_C   = lua.c xlsx.c expr.c Parser.c Lexer.c sheet.c calc.c function.c session.c util.c html.c plugin.c slab.c
 #SC_LIB_O   = lua.o xlsx.o expr.o Parser.o Lexer.o sheet.o calc.o function.o session.o util.o html.o plugin.o slab.o
 SC_LIB_O   = expr.o Parser.o Lexer.o sheet.o calc.o function.o session.o util.o plugin.o slab.o
@@ -27,6 +27,9 @@ server: sc_lib server.o rpsc.h
 client: client.o
 	$(CC) $(CFLAGS) client.o -L./ -o client -lmsgpackc -Lmsgpack-c/libmsgpackc.so.2.0.0
 
+tui: tui.o
+	$(CC) $(CFLAGS) tui.o -L./ -o tui/tui -lncursesw -lmsgpackc -Lmsgpack-c/libmsgpackc.so.2.0.0
+
 Lexer.c:	Lexer.l
 	flex Lexer.l
 
@@ -47,6 +50,9 @@ xlsx.so:		xlsx.c
 
 %.o:            %.c rpsc.h
 	$(CC) $(CFLAGS) -c $< -o $@ `pkg-config --cflags lua5.2`
+
+tui.o:           tui/tui.c
+	$(CC) $(CFLAGS) -c $< -o $@
 
 clean:
 	rm -f Lexer.c Parser.c Parser.h *.o gmon.out test1 server client html.so *.so *.a
