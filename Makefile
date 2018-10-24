@@ -55,4 +55,4 @@ tui.o:           tui/tui.c
 	$(CC) $(CFLAGS) -c $< -o $@
 
 clean:
-	rm -f Lexer.c Lexer.h Parser.c Parser.h *.o gmon.out test1 server client html.so *.so *.a
+	rm -f Lexer.c Lexer.h Parser.c Parser.h *.o gmon.out test1 server client html.so *.so *.a tui/*.o tui/tui
