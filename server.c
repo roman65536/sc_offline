@@ -44,6 +44,9 @@ typedef struct {
     int col;
     double val;
     short bye;
+    char label[20]; //label
+    short flags;
+    short formula[100];
 } msg;
 
 void decompress_msg(msgpack_object o, msg * m);
@@ -227,7 +230,10 @@ int process_msg(int msocket, msgpack_object o, msgpack_sbuffer * sbuf) {
         m.id  = -1;
         m.row = -1;
         m.col = -1;
-        m.val = -1; // val should be int * type
+        m.val = -1;      // val should be int * type
+        m.label[0] = '\0';    // should be char * type
+        m.formula[0] = '\0';  // should be char * type
+        m.flags = -1;    // should be short * type
 
         decompress_msg(o, &m);
 
@@ -318,6 +324,42 @@ int process_msg(int msocket, msgpack_object o, msgpack_sbuffer * sbuf) {
             /* TODO: should return -1 if session not found
                      should return -2 if sheet not found */
             printf("\nfin server get_val\n");
+
+        } else if (! strncmp(m.method, "get_cell", 8)) {
+            printf("\nin server get_cell\n");
+            struct roman * cur_sesn = get_session (m.id);
+            struct Ent * e1 = lookat(cur_sesn->cur_sh, m.row, m.col);
+
+            msgpack_pack_map(&pk, 5);
+
+            msgpack_pack_str(&pk, 3);
+            msgpack_pack_str_body(&pk, "ret", 3);
+            msgpack_pack_short(&pk, 0);
+
+            msgpack_pack_str(&pk, 3);
+            msgpack_pack_str_body(&pk, "val", 3);
+            msgpack_pack_float(&pk, e1->val);
+
+            msgpack_pack_str(&pk, 5);
+            msgpack_pack_str_body(&pk, "label", 7);
+            msgpack_pack_str(&pk, e1->label != NULL ? strlen(e1->label) : 0);
+            msgpack_pack_str_body(&pk, e1->label != NULL ? e1->label : "", e1->label != NULL ? strlen(e1->label) : 0);
+
+            msgpack_pack_str(&pk, 7);
+            msgpack_pack_str_body(&pk, "formula", 7);
+            msgpack_pack_str(&pk, e1->formula != NULL ? strlen(e1->formula) : 0);
+            msgpack_pack_str_body(&pk, e1->formula != NULL ? e1->formula : "", e1->formula != NULL ? strlen(e1->formula) : 0);
+
+            msgpack_pack_str(&pk, 4);
+            msgpack_pack_str_body(&pk, "flag", 4);
+            msgpack_pack_short(&pk, e1->flag);
+
+            send(msocket, sbuf->data, sbuf->size, 0 );
+            msgpack_sbuffer_clear(sbuf);
+
+            /* TODO: should return -1 if session not found
+                     should return -2 if sheet not found */
+            printf("\nfin server get_cell\n");
 
         } else if (! strncmp("recalc", m.method, 6)) {
             // TODO
