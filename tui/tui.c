@@ -7,11 +7,12 @@
 
 
 /* DEFINES */
-#define RESROW           2     // rows reserved for prompt, error, and column numbers
 #define TIMEOUT_CURSES   300   // ms  curses input timeout
 #define BUFFERSIZE      1024
 #define sc_debug(x, ...)     ui_sc_msg(x, DEBUG_MSG, ##__VA_ARGS__)
 #define DEBUG_MSG         19
+#define RESROW           2     // rows reserved for prompt, error, and column numbers
+#define RESCOL           4     // default terminal columns reserved for row numbers
 
 
 /* STRUCTS */
@@ -25,16 +26,20 @@ struct block { /* Block of buffer */
 void sig_int();
 void ui_start_screen();
 void ui_stop_screen();
-
 struct block * create_buf();
 void addto_buf(struct block * buf, wint_t d);
 void flush_buf (struct block * buf);
 void erase_buf (struct block * buf);
-
 void handle_input(struct block * buffer);
 void do_normalmode(struct block * buf);
 void ui_sc_msg(char * s, int type, ...);
-
+void ui_show_header();
+void ui_clr_header(int i);
+void ui_show_sc_row_headings(WINDOW * win, int mxrow);
+int calc_offscr_sc_rows();
+void ui_show_sc_col_headings(WINDOW * win, int mxcol);
+void ui_update(int header);
+char * coltoa(int col);
 
 /* GLOBAL VARIABLES */
 WINDOW * main_win;
@@ -42,13 +47,16 @@ WINDOW * input_win;
 SCREEN * sstdout;
 
 struct block * buffer;
-int shall_quit = 0;
-
-int currow = 0; /* Current row of the selected cell */
-int curcol = 0; /* Current column of the selected cell */
 int return_value;          // return value of getch()
 static wint_t wd;          // char read from stdin
 static int d;              // char read from stdin
+
+int currow = 0; /* Current row of the selected cell */
+int curcol = 0; /* Current column of the selected cell */
+int rescol = RESCOL; /* terminal columns reserved for displaying row numbers */
+int shall_quit = 0;
+int offscr_sc_rows = 0, offscr_sc_cols = 0; /* off screen spreadsheet rows and columns */
+
 
 
 int main (int argc, char ** argv) {
@@ -100,6 +108,29 @@ void sig_int() {
     return;
 }
 
+void ui_show_header() {
+    ui_clr_header(0);
+    ui_clr_header(1);
+    mvwprintw(input_win, 0, rescol, " %d %d", currow, curcol);
+    wrefresh(input_win);
+    return;
+}
+
+
+void ui_clr_header(int i) {
+    int row_orig, col_orig;
+    getyx(input_win, row_orig, col_orig);
+    if (col_orig > COLS) col_orig = COLS - 1;
+
+    wmove(input_win, i, 0);
+    wclrtoeol(input_win);
+
+    // Return cursor to previous position
+    wmove(input_win, row_orig, col_orig);
+
+    return;
+}
+
 
 void handle_input(struct block * buffer) {
     return_value = ui_getch(&wd);
@@ -116,20 +147,46 @@ void handle_input(struct block * buffer) {
 
 void do_normalmode(struct block * buf) {
     switch (buf->value) {
+        case L'l':
+            curcol++;
+            //sc_debug("l");
+            break;
+
+        case L'h':
+            if (curcol) curcol--;
+            //sc_debug("h");
+            break;
+
+        case L'k':
+            if (currow) currow--;
+            //sc_debug("k");
+            break;
+
         case L'j':
-            sc_debug("j");
+            currow++;
+            //sc_debug("j");
             break;
 
         case L'q':
             shall_quit = 1;
             break;
     }
+    ui_show_header();
+    ui_update(1);
 }
 
 
 void ui_sc_msg(char * s, int type, ...) {
-    mvwprintw(input_win, 1, 0, "%s", s);
+    char t[BUFFERSIZE];
+    va_list args;
+    va_start(args, type);
+    vsprintf (t, s, args);
+
+
+    mvwprintw(input_win, 1, 0, "%s", t);
     wclrtoeol(input_win);
+    wrefresh(input_win);
+    va_end(args);
 }
 
 /**
@@ -216,3 +273,97 @@ struct block * dequeue (struct block * buf) {
     }
     return buf;
 }
+
+void ui_update(int header) {
+    /*
+     * Calculate offscreen rows and columns
+     *
+     * mxcol is the last visible column in screen grid.
+     * for instance, if mxcol is 8, last visible column would be I
+     * mxrow is the last visible row in screen grid
+     *
+     * offscr_sc_cols are the number of columns left at the left of start of grid.
+     * for instance, if offscr_sc_cols is 4. the first visible column in grid would be column E.
+     *
+     * there is a special behaviour when frozen columns or rows exists.
+     * center_hidden_rows and center_hidden_columns are the number of rows and columns between
+     * a frozen range and the first column or row visible.
+     * example: if columns A and B are frozen, and center_hidden_cols is 4,
+     * your grid would start with columns A, B, G, H..
+     */
+    int off_cols = calc_offscr_sc_cols();
+    int off_rows = calc_offscr_sc_rows();
+    int mxcol = offscr_sc_cols + off_cols - 1;
+    int mxrow = offscr_sc_rows + off_rows - 1;
+
+
+    //ui_show_content(main_win, mxrow, mxcol);
+
+    // Show sc_col headings: A, B, C, D..
+    ui_show_sc_col_headings(main_win, mxcol);
+
+    // Show sc_row headings: 0, 1, 2, 3..
+    ui_show_sc_row_headings(main_win, mxrow);
+
+    // Refresh curses windows
+    wrefresh(main_win);
+
+}
+
+
+void ui_show_sc_row_headings(WINDOW * win, int mxrow) {
+    int row = 0;
+    int i;
+    for (i = 0; i <= mxrow; i++) {
+        if (i == currow) wattron(win, A_REVERSE);
+        mvwprintw (win, row+1, 0, "%*d ", rescol-1, i);
+        wattroff(win, A_REVERSE);
+        row++;
+    }
+    return;
+}
+
+
+void ui_show_sc_col_headings(WINDOW * win, int mxcol) {
+    int FIXED_COLWIDTH = 12;
+    int i, col = rescol;
+    wmove(win, 0, 0);
+    wclrtoeol(win);
+
+    for (i = 0; i <= mxcol; i++) {
+        int k = FIXED_COLWIDTH / 2;
+        if (i == curcol) wattron(win, A_REVERSE);
+        mvwprintw(win, 0, col, "%*s%-*s", k-1, " ", FIXED_COLWIDTH - k + 1, coltoa(i));
+
+        col += FIXED_COLWIDTH;
+        if (i == mxcol && COLS - col > 0) wclrtoeol(win);
+
+        wattroff(win, A_REVERSE);
+    }
+}
+
+
+int calc_offscr_sc_rows() {
+    offscr_sc_rows = 0;
+    return LINES - RESROW;
+}
+
+int calc_offscr_sc_cols() {
+    offscr_sc_cols = 0;
+    return COLS - RESCOL;
+}
+
+
+char * coltoa(int col) {
+    static char rname[3];
+    register char *p = rname;
+
+    if (col > 25) {
+        *p++ = col/26 + 'A' - 1;
+        col %= 26;
+    }
+    *p++ = col+'A';
+    *p = '\0';
+    return (rname);
+}
+
