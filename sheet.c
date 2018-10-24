@@ -106,6 +106,8 @@ void delete_sheet(struct roman *doc, struct Sheet *sh)
 		    objs_cache_free(&sh->cache_ent,ent);
 		}
 	}
+	free(sh->hash);
+    free(sh->name);
     objs_cache_destroy(&sh->cache_ent);
     free(sh);
 

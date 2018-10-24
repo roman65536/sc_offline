@@ -6,6 +6,7 @@
 #include <stdlib.h>
 #include <netinet/in.h>
 #include <fcntl.h>
+#include <unistd.h>   /* for read */
 
 #define PORT 1234
 
