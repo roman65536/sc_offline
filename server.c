@@ -435,6 +435,7 @@ void initialize_msg(msg * m) {
     m->label = NULL;
     m->formula = NULL;
     m->flags = NULL;
+    m->bye = NULL;
     return;
 }
 
@@ -448,6 +449,7 @@ void free_msg(msg * m) {
     if (m->label != NULL)   free(m->label);
     if (m->formula != NULL) free(m->formula);
     if (m->flags != NULL)   free(m->flags);
+    if (m->bye != NULL)     free(m->bye);
     return;
 }
 

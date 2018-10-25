@@ -14,13 +14,14 @@
 
 
 /* DEFINES */
-#define TIMEOUT_CURSES   300   // ms  curses input timeout
+#define TIMEOUT_CURSES   300     // ms  curses input timeout
 #define BUFFERSIZE      1024
 #define sc_debug(x, ...)     ui_sc_msg(x, DEBUG_MSG, ##__VA_ARGS__)
 #define DEBUG_MSG         19
-#define RESROW           2     // rows reserved for prompt, error, and column numbers
-#define RESCOL           4     // default terminal columns reserved for row numbers
+#define RESROW             2     // rows reserved for prompt, error, and column numbers
+#define RESCOL             4     // default terminal columns reserved for row numbers
 #define PORT 1234
+#define FIXED_COLWIDTH    12
 
 
 /* STRUCTS */
@@ -29,6 +30,20 @@ struct block { /* Block of buffer */
   struct block * pnext;
 };
 
+// this is a dirty struct to handle a message
+// will be removed later on when code generator is ready
+typedef struct {
+    int * id;
+    char * method;
+    char * name;      // sheet_name
+    int * row;
+    int * col;
+    short * bye;
+    double * val;     // ent value
+    char * label;     // ent label
+    short * flags;    // ent flags
+    short * formula;  // ent formula
+} msg;
 
 /* PROTOTYPES */
 void sig_int();
@@ -57,7 +72,9 @@ int get_val(int row, int col, float * res);
 int set_val(int row, int col, float val);
 int bye();
 int connect_to_server();
-
+void unpack_msg(msgpack_object o, msg * m);
+void free_msg(msg * m);
+void initialize_msg(msg * m);
 
 /* GLOBAL VARIABLES */
 WINDOW * main_win;
@@ -148,6 +165,9 @@ int main (int argc, char ** argv) {
 
     //printf("\nsetting value\n");
     set_val(3, 2, 12.4);
+    set_val(0, 0, 4);
+    set_val(1, 0, 3);
+    set_val(2, 2, 6.7);
 
     //sleep(5);
     //float f;
@@ -161,10 +181,10 @@ int main (int argc, char ** argv) {
     ui_start_screen();
 
     // first update
-    ui_update(1);
     int off_cols = calc_offscr_sc_cols();
     int off_rows = calc_offscr_sc_rows();
     ui_show_content(main_win, offscr_sc_rows + off_rows -1, offscr_sc_cols + off_cols - 1);
+    ui_update(1);
 
     // handle input from keyboard
     wchar_t stdin_buffer [BUFFERSIZE] = { L'\0' };
@@ -257,24 +277,28 @@ void do_normalmode(struct block * buf) {
     switch (buf->value) {
         case L'l':
             curcol++;
+            ui_show_header();
             ui_update(1);
             //sc_debug("l");
             break;
 
         case L'h':
             if (curcol) curcol--;
+            ui_show_header();
             ui_update(1);
             //sc_debug("h");
             break;
 
         case L'k':
             if (currow) currow--;
+            ui_show_header();
             ui_update(1);
             //sc_debug("k");
             break;
 
         case L'j':
             currow++;
+            ui_show_header();
             ui_update(1);
             //sc_debug("j");
             break;
@@ -283,11 +307,16 @@ void do_normalmode(struct block * buf) {
             ui_update(1);
             break;
 
+        case L'a':
+            ;
+            int off_cols = calc_offscr_sc_cols();
+            int off_rows = calc_offscr_sc_rows();
+            ui_show_content(main_win, offscr_sc_rows + off_rows -1, offscr_sc_cols + off_cols - 1);
+            break;
         case L'q':
             shall_quit = 1;
             break;
     }
-    ui_show_header();
 }
 
 
@@ -424,74 +453,77 @@ void ui_update(int header) {
 
 
 void ui_show_content(WINDOW * win, int mxrow, int mxcol) {
-    //int ri = offscr_sc_rows + 1;
-    //int ci = offscr_sc_cols + 1;
-    int found=0;
-
-    //for (r=ri; r<=mxrow; r++) {
-    //    for (c=ci; c<=mxcol; c++) {
-    int r = 3;
-    int c = 2;
-    int res;
-
-    msgpack_pack_map(&pk, 3);
-
-    msgpack_pack_str(&pk, 2);
-    msgpack_pack_str_body(&pk, "id", 2);
-    msgpack_pack_short(&pk, id_session);
-
-    msgpack_pack_str(&pk, 6);
-    msgpack_pack_str_body(&pk, "method", 6);
-    msgpack_pack_str(&pk, 8);
-    msgpack_pack_str_body(&pk, "get_cell", 8);
-
-    msgpack_pack_str(&pk, 6);
-    msgpack_pack_str_body(&pk, "params", 6);
-    msgpack_pack_map(&pk, 2);
-
-    msgpack_pack_str(&pk, 3);
-    msgpack_pack_str_body(&pk, "row", 3);
-    msgpack_pack_int(&pk, r);
-
-    msgpack_pack_str(&pk, 3);
-    msgpack_pack_str_body(&pk, "col", 3);
-    msgpack_pack_int(&pk, c);
-
-    send(sock, sbuf.data, sbuf.size, 0 );
-    msgpack_sbuffer_clear(&sbuf);
+    int ri = offscr_sc_rows + 1;
+    int ci = offscr_sc_cols + 1;
+    int r, c;
 
     msgpack_unpacker unp;
     bool result = msgpack_unpacker_init(&unp, 1024);
-    //if (result) sc_debug("\nok init\n");
 
-    // get cell
-    valread = read(sock, buffer, 1024);
-    if (valread > 0) {
-        memcpy(msgpack_unpacker_buffer(&unp), buffer, 1024);
-        msgpack_unpacker_buffer_consumed(&unp, 1024);
-        msgpack_unpacked und;
-        msgpack_unpack_return ret;
-        msgpack_unpacked_init(&und);
-        ret = msgpack_unpacker_next(&unp, &und);
-        //if (ret == MSGPACK_UNPACK_SUCCESS) sc_debug("ok unpacked\n");
-        msgpack_object q = und.data;
+    ri=3;
+    ci=2;
+    for (r=ri; r<=mxrow && r == 3; r++) {
+        for (c=ci; c<=mxcol && c == 2; c++) {
+            //int r = 3;
+            //int c = 2;
 
-        //msgpack_object_print(stdout, q);
-        // TODO pack everything in a msg struct before the following evaluation
+            msgpack_pack_map(&pk, 3);
 
-        if (
-           q.type == MSGPACK_OBJECT_MAP &&
-           ! strncmp(q.via.map.ptr->key.via.str.ptr, "ret", 3) &&
-           ((int) q.via.map.ptr->val.via.u64 == 0) &&
-           ! strncmp(((q.via.map.ptr)+1)->key.via.str.ptr, "val", 3)
-           ) {
-            res = ((q.via.map.ptr)+1)->val.via.f64;
-            found = 1;
+            msgpack_pack_str(&pk, 2);
+            msgpack_pack_str_body(&pk, "id", 2);
+            msgpack_pack_short(&pk, id_session);
+
+            msgpack_pack_str(&pk, 6);
+            msgpack_pack_str_body(&pk, "method", 6);
+            msgpack_pack_str(&pk, 8);
+            msgpack_pack_str_body(&pk, "get_cell", 8);
+
+            msgpack_pack_str(&pk, 6);
+            msgpack_pack_str_body(&pk, "params", 6);
+            msgpack_pack_map(&pk, 2);
+
+            msgpack_pack_str(&pk, 3);
+            msgpack_pack_str_body(&pk, "row", 3);
+            msgpack_pack_int(&pk, r);
+
+            msgpack_pack_str(&pk, 3);
+            msgpack_pack_str_body(&pk, "col", 3);
+            msgpack_pack_int(&pk, c);
+
+            send(sock, sbuf.data, sbuf.size, 0 );
+            msgpack_sbuffer_clear(&sbuf);
+
+            //if (result) sc_debug("\nok init\n");
+
+            // get cell
+            valread = read(sock, buffer, 1024);
+            if (valread > 0) {
+                memcpy(msgpack_unpacker_buffer(&unp), buffer, 1024);
+                msgpack_unpacker_buffer_consumed(&unp, 1024);
+                msgpack_unpacked und;
+                msgpack_unpack_return ret;
+                msgpack_unpacked_init(&und);
+                ret = msgpack_unpacker_next(&unp, &und);
+                //if (ret == MSGPACK_UNPACK_SUCCESS) sc_debug("ok unpacked\n");
+                msgpack_object q = und.data;
+
+                //msgpack_object_print(stdout, q);
+                msg m;
+                initialize_msg(&m);
+                if (q.type == MSGPACK_OBJECT_MAP) {
+                    unpack_msg(q, &m); /* unpack object received (q) to (msg) m */
+                    if (m.val != NULL) {
+                        //mvwprintw(win, r + RESROW - 1, FIXED_COLWIDTH * c + RESCOL, "%f", *(m.val));
+                        //wclrtoeol(win);
+                    }
+                }
+                free_msg(&m);
+
+                msgpack_unpacked_destroy(&und);
+            }
         }
-        msgpack_unpacked_destroy(&und);
     }
     msgpack_unpacker_destroy(&unp);
-    if (found) sc_debug("res: %d", res);
 
     return;
 }
@@ -510,7 +542,6 @@ void ui_show_sc_row_headings(WINDOW * win, int mxrow) {
 
 
 void ui_show_sc_col_headings(WINDOW * win, int mxcol) {
-    int FIXED_COLWIDTH = 12;
     int i, col = rescol;
     wmove(win, 0, 0);
     wclrtoeol(win);
@@ -691,9 +722,9 @@ int get_val(int row, int col, float * res) {
         //if (ret == MSGPACK_UNPACK_SUCCESS) sc_debug("ok unpacked\n");
         msgpack_object q = und.data;
 
-        msgpack_object_print(stdout, q);
+        //msgpack_object_print(stdout, q);
 
-        if (
+        /* if (
            q.type == MSGPACK_OBJECT_MAP && q.via.map.size == 2 &&
            ! strncmp(q.via.map.ptr->key.via.str.ptr, "ret", 3) &&
            ((int) q.via.map.ptr->val.via.u64 == 0) &&
@@ -701,7 +732,17 @@ int get_val(int row, int col, float * res) {
            ) {
             *res = ((q.via.map.ptr)+1)->val.via.f64;
             found = 1;
+        } */
+
+        msg m;
+        initialize_msg(&m);
+        if (q.type == MSGPACK_OBJECT_MAP) {
+            unpack_msg(q, &m); /* unpack object received (q) to (msg) m */
+            *res = *(m.val);
+            found = 1;
         }
+        free_msg(&m);
+
         msgpack_unpacked_destroy(&und);
     }
     msgpack_unpacker_destroy(&unp);
@@ -796,3 +837,73 @@ void remove_sheet() {
     }
     return;
 }
+
+/* unpacka msg from a map in a msgpack object */
+void unpack_msg(msgpack_object o, msg * m) {
+    int size = o.via.map.size;
+
+    msgpack_object_kv * p = o.via.map.ptr;
+    msgpack_object_kv * pend = o.via.map.ptr + o.via.map.size;
+
+    while (p < pend) {
+        if (p->key.type == MSGPACK_OBJECT_STR) {
+        //printf("key: %.*s\n", p->key.via.str.size, p->key.via.str.ptr);
+
+            if (! strncmp(p->key.via.str.ptr, "id", p->key.via.str.size)) {
+                m->id = (int *) malloc(sizeof(int));
+                *(m->id) = p->val.via.u64;
+            } else if (! strncmp(p->key.via.str.ptr, "row", p->key.via.str.size)) {
+                m->row = (int *) malloc(sizeof(int));
+                *(m->row) = p->val.via.u64;
+            } else if (! strncmp(p->key.via.str.ptr, "col", p->key.via.str.size)) {
+                m->col = (int *) malloc(sizeof(int));
+                *(m->col) = p->val.via.u64;
+            } else if (! strncmp(p->key.via.str.ptr, "bye", p->key.via.str.size)) {
+                m->bye = (short *) malloc(sizeof(short));
+                *(m->bye) = p->val.via.u64;
+            } else if (! strncmp(p->key.via.str.ptr, "val", p->key.via.str.size)) {
+                m->val = (double *) malloc(sizeof(double));
+                *(m->val) = p->val.via.f64;
+            } else if (! strncmp(p->key.via.str.ptr, "method", p->key.via.str.size)) {
+                m->method = (char *) malloc(sizeof(char) * (p->val.via.str.size + 1));
+                sprintf(m->method, "%.*s", p->val.via.str.size, p->val.via.str.ptr);
+            } else if (! strncmp(p->key.via.str.ptr, "name", p->key.via.str.size)) {
+                m->name = (char *) malloc(sizeof(char) * (p->val.via.str.size + 1));
+                sprintf(m->name, "%.*s", p->val.via.str.size, p->val.via.str.ptr);
+            }
+
+        } else if (p->val.type == MSGPACK_OBJECT_MAP) {
+            unpack_msg(p->val, m);
+        }
+        p++;
+    }
+}
+
+void free_msg(msg * m) {
+    if (m->method != NULL)  free(m->method);
+    if (m->name != NULL)    free(m->name);
+    if (m->id  != NULL)     free(m->id);
+    if (m->row != NULL)     free(m->row);
+    if (m->col != NULL)     free(m->col);
+    if (m->bye != NULL)     free(m->bye);
+    if (m->val != NULL)     free(m->val);
+    if (m->label != NULL)   free(m->label);
+    if (m->formula != NULL) free(m->formula);
+    if (m->flags != NULL)   free(m->flags);
+    return;
+}
+
+void initialize_msg(msg * m) {
+    m->method = NULL;
+    m->name = NULL;
+    m->id  = NULL;
+    m->row = NULL;
+    m->col = NULL;
+    m->val = NULL;
+    m->label = NULL;
+    m->formula = NULL;
+    m->flags = NULL;
+    m->bye = NULL;
+    return;
+}
+
