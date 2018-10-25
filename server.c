@@ -385,25 +385,25 @@ void decompress_msg(msgpack_object o, msg * m) {
             if (p->key.type == MSGPACK_OBJECT_STR) {
                 //printf("key: %.*s\n", p->key.via.str.size, p->key.via.str.ptr);
 
-                if (! strncmp(p->key.via.str.ptr, "id", p->key.via.str.size)) {
+                if (m->id == NULL && ! strncmp(p->key.via.str.ptr, "id", p->key.via.str.size)) {
                     m->id = (int *) malloc(sizeof(int));
                     *(m->id) = p->val.via.u64;
-                } else if (! strncmp(p->key.via.str.ptr, "row", p->key.via.str.size)) {
+                } else if (m->row == NULL && ! strncmp(p->key.via.str.ptr, "row", p->key.via.str.size)) {
                     m->row = (int *) malloc(sizeof(int));
                     *(m->row) = p->val.via.u64;
-                } else if (! strncmp(p->key.via.str.ptr, "col", p->key.via.str.size)) {
+                } else if (m->col == NULL && ! strncmp(p->key.via.str.ptr, "col", p->key.via.str.size)) {
                     m->col = (int *) malloc(sizeof(int));
                     *(m->col) = p->val.via.u64;
-                } else if (! strncmp(p->key.via.str.ptr, "bye", p->key.via.str.size)) {
+                } else if (m->bye == NULL && ! strncmp(p->key.via.str.ptr, "bye", p->key.via.str.size)) {
                     m->bye = (short *) malloc(sizeof(short));
                     *(m->bye) = p->val.via.u64;
-                } else if (! strncmp(p->key.via.str.ptr, "val", p->key.via.str.size)) {
+                } else if (m->val == NULL && ! strncmp(p->key.via.str.ptr, "val", p->key.via.str.size)) {
                     m->val = (double *) malloc(sizeof(double));
                     *(m->val) = p->val.via.f64;
-                } else if (! strncmp(p->key.via.str.ptr, "method", p->key.via.str.size)) {
+                } else if (m->method == NULL && ! strncmp(p->key.via.str.ptr, "method", p->key.via.str.size)) {
                     m->method = (char *) malloc(sizeof(char) * (p->val.via.str.size + 1));
                     sprintf(m->method, "%.*s", p->val.via.str.size, p->val.via.str.ptr);
-                } else if (! strncmp(p->key.via.str.ptr, "name", p->key.via.str.size)) {
+                } else if (m->name == NULL && ! strncmp(p->key.via.str.ptr, "name", p->key.via.str.size)) {
                     m->name = (char *) malloc(sizeof(char) * (p->val.via.str.size + 1));
                     sprintf(m->name, "%.*s", p->val.via.str.size, p->val.via.str.ptr);
                 }
@@ -411,6 +411,7 @@ void decompress_msg(msgpack_object o, msg * m) {
             } else if (p->key.type == MSGPACK_OBJECT_POSITIVE_INTEGER) {
                 //printf("key: %d\n", (int) p->key.via.u64);
             }
+
             if (p->val.type == MSGPACK_OBJECT_STR) {
                 //printf("val: %.*s\n", p->val.via.str.size, p->val.via.str.ptr);
             } else if (p->val.type == MSGPACK_OBJECT_POSITIVE_INTEGER) {

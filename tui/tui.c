@@ -174,8 +174,6 @@ int main (int argc, char ** argv) {
     //int res = get_val(0, 0, &f);
     //if (res == 0) printf("\ngetting value: %f.\n", f);
 
-    //printf("deleting sheet\n");
-    //remove_sheet();
 
     // start ncurses
     ui_start_screen();
@@ -184,6 +182,7 @@ int main (int argc, char ** argv) {
     int off_cols = calc_offscr_sc_cols();
     int off_rows = calc_offscr_sc_rows();
     ui_show_content(main_win, offscr_sc_rows + off_rows -1, offscr_sc_cols + off_cols - 1);
+
     ui_update(1);
 
     // handle input from keyboard
@@ -196,6 +195,9 @@ int main (int argc, char ** argv) {
 
     // stop ncurses
     ui_stop_screen();
+
+    //printf("deleting sheet\n");
+    remove_sheet();
 
     // send bye to server
     bye();
@@ -311,6 +313,9 @@ void do_normalmode(struct block * buf) {
             ;
             int off_cols = calc_offscr_sc_cols();
             int off_rows = calc_offscr_sc_rows();
+            int mxcol = offscr_sc_cols + off_cols - 1;
+            int mxrow = offscr_sc_rows + off_rows - 1;
+            //sc_debug("++%d %d++%d %d", mxrow, mxcol, off_rows, off_cols);
             ui_show_content(main_win, offscr_sc_rows + off_rows -1, offscr_sc_cols + off_cols - 1);
             break;
         case L'q':
@@ -455,6 +460,7 @@ void ui_update(int header) {
 void ui_show_content(WINDOW * win, int mxrow, int mxcol) {
     int ri = offscr_sc_rows + 1;
     int ci = offscr_sc_cols + 1;
+    //sc_debug("++%d %d++%d %d", mxrow, mxcol, ri, ci);
     int r, c;
 
     msgpack_unpacker unp;
@@ -464,6 +470,9 @@ void ui_show_content(WINDOW * win, int mxrow, int mxcol) {
     ci=2;
     for (r=ri; r<=mxrow && r == 3; r++) {
         for (c=ci; c<=mxcol && c == 2; c++) {
+    //for (r=ri; r<=mxrow; r++) {
+    //    for (c=ci; c<=mxcol; c++) {
+            //sc_debug("%d %d", r, c);
             //int r = 3;
             //int c = 2;
 
@@ -499,7 +508,7 @@ void ui_show_content(WINDOW * win, int mxrow, int mxcol) {
             valread = read(sock, buffer, 1024);
             if (valread > 0) {
                 memcpy(msgpack_unpacker_buffer(&unp), buffer, 1024);
-                msgpack_unpacker_buffer_consumed(&unp, 1024);
+                msgpack_unpacker_buffer_consumed(&unp, 1024); //FIXME
                 msgpack_unpacked und;
                 msgpack_unpack_return ret;
                 msgpack_unpacked_init(&und);
@@ -511,20 +520,18 @@ void ui_show_content(WINDOW * win, int mxrow, int mxcol) {
                 msg m;
                 initialize_msg(&m);
                 if (q.type == MSGPACK_OBJECT_MAP) {
-                    unpack_msg(q, &m); /* unpack object received (q) to (msg) m */
+                    unpack_msg(q, &m); // unpack object received (q) to (msg) m
                     if (m.val != NULL) {
-                        //mvwprintw(win, r + RESROW - 1, FIXED_COLWIDTH * c + RESCOL, "%f", *(m.val));
-                        //wclrtoeol(win);
+                        mvwprintw(win, r + RESROW - 1, FIXED_COLWIDTH * c + RESCOL, "%f", *(m.val));
+                        wclrtoeol(win);
                     }
                 }
                 free_msg(&m);
-
                 msgpack_unpacked_destroy(&und);
             }
         }
     }
     msgpack_unpacker_destroy(&unp);
-
     return;
 }
 
@@ -566,7 +573,7 @@ int calc_offscr_sc_rows() {
 
 int calc_offscr_sc_cols() {
     offscr_sc_cols = 0;
-    return COLS - RESCOL;
+    return (COLS - RESCOL) / FIXED_COLWIDTH;
 }
 
 
