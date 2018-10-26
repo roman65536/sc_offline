@@ -78,6 +78,9 @@ int connect_to_server();
 void unpack_msg(msgpack_object o, msg * m);
 void free_msg(msg * m);
 void initialize_msg(msg * m);
+void high_cursor(WINDOW * win);
+void clean_cursor(WINDOW * win);
+
 
 /* GLOBAL VARIABLES */
 WINDOW * main_win;
@@ -283,31 +286,32 @@ void do_normalmode(struct block * buf) {
     int off_rows = calc_offscr_sc_rows();
     switch (buf->value) {
         case L'l':
+            clean_cursor(main_win);
             curcol++;
-            ui_show_content(main_win, offscr_sc_rows + off_rows -1, offscr_sc_cols + off_cols - 1);
-            //ui_show_header();
-            ui_update(1);
+            high_cursor(main_win);
             break;
 
         case L'h':
+            clean_cursor(main_win);
             if (curcol) curcol--;
-            ui_show_content(main_win, offscr_sc_rows + off_rows -1, offscr_sc_cols + off_cols - 1);
-            //ui_show_header();
-            ui_update(1);
+            high_cursor(main_win);
+            ui_show_header();
             break;
 
         case L'k':
+            clean_cursor(main_win);
             if (currow) currow--;
-            ui_show_content(main_win, offscr_sc_rows + off_rows -1, offscr_sc_cols + off_cols - 1);
-            //ui_show_header();
-            ui_update(1);
+            high_cursor(main_win);
+            ui_show_header();
+            //ui_show_content(main_win, offscr_sc_rows + off_rows -1, offscr_sc_cols + off_cols - 1);
+            //ui_update(1);
             break;
 
         case L'j':
+            clean_cursor(main_win);
             currow++;
-            ui_show_content(main_win, offscr_sc_rows + off_rows -1, offscr_sc_cols + off_cols - 1);
-            //ui_show_header();
-            ui_update(1);
+            high_cursor(main_win);
+            ui_show_header();
             break;
 
         case L'u':
@@ -958,5 +962,40 @@ void initialize_msg(msg * m) {
     m->formula = NULL;
     m->flag = NULL;
     m->bye = NULL;
+    return;
+}
+
+void clean_cursor(WINDOW * win) {
+    wattroff(win, A_REVERSE);
+
+    cchar_t cht[FIXED_COLWIDTH];
+    wchar_t w;
+    int i, j;
+    for (i = 0; i < FIXED_COLWIDTH; ) {
+        w = L' ';
+        j = mvwin_wchnstr (win, currow + RESROW - 1, (FIXED_COLWIDTH * curcol) + RESCOL + i, cht, 1);
+        if (j == OK && cht[0].chars[0] != L'\0') w = cht[0].chars[0];
+        mvwprintw(win, currow + RESROW - 1, (FIXED_COLWIDTH * curcol) + RESCOL + i, "%lc", w);
+        i+= wcwidth(w);
+    }
+    return;
+}
+
+
+void high_cursor(WINDOW * win) {
+    wattron(win, A_REVERSE);
+
+    cchar_t cht[FIXED_COLWIDTH];
+    wchar_t w;
+    int i, j;
+    for (i = 0; i < FIXED_COLWIDTH; ) {
+        w = L' ';
+        j = mvwin_wchnstr (win, currow + RESROW - 1, (FIXED_COLWIDTH * curcol) + RESCOL + i, cht, 1);
+        if (j == OK && cht[0].chars[0] != L'\0') w = cht[0].chars[0];
+        mvwprintw(win, currow + RESROW - 1, (FIXED_COLWIDTH * curcol) + RESCOL + i, "%lc", w);
+        i+= wcwidth(w);
+    }
+    wattroff(win, A_REVERSE);
+    wrefresh(win);
     return;
 }

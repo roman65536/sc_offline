@@ -6,7 +6,7 @@ SC_LIB_C   = lua.c xlsx.c expr.c Parser.c Lexer.c sheet.c calc.c function.c sess
 SC_LIB_O   = expr.o Parser.o Lexer.o sheet.o calc.o function.o session.o util.o plugin.o slab.o
 CC      = gcc
 #CFLAGS  = -O6 -DNEW -g -DSYSV3 -pg -fPIC -DCOMPAT_MODULE
-CFLAGS  = -pg -g -DSYSV3 -DNEW  -fPIC -DCOMPAT_MODULE  -fvisibility=default -export-dynamic -ldl -lpthread
+CFLAGS  = -pg -g -DSYSV3 -DNEW  -fPIC -DCOMPAT_MODULE  -fvisibility=default -export-dynamic -ldl -lpthread -D_XOPEN_SOURCE_EXTENDED
 
 all:	html.so xlsx.so test1 server client tui
 
