@@ -18,7 +18,7 @@
 #define BUFFERSIZE      1024
 #define sc_debug(x, ...)     ui_sc_msg(x, DEBUG_MSG, ##__VA_ARGS__)
 #define DEBUG_MSG         19
-#define RESROW             2     // rows reserved for prompt, error, and column numbers
+#define RESROW             2     // rows reserved for prompt, error
 #define RESCOL             4     // default terminal columns reserved for row numbers
 #define PORT 1234
 #define FIXED_COLWIDTH    12
@@ -34,15 +34,18 @@ struct block { /* Block of buffer */
 // will be removed later on when code generator is ready
 typedef struct {
     int * id;
+    int * ret;
     char * method;
     char * name;      // sheet_name
     int * row;
     int * col;
+    int * to_row;
+    int * to_col;
     short * bye;
     double * val;     // ent value
     char * label;     // ent label
-    short * flags;    // ent flags
-    short * formula;  // ent formula
+    short * flag;     // ent flag
+    char * formula;   // ent formula
 } msg;
 
 /* PROTOTYPES */
@@ -288,21 +291,18 @@ void do_normalmode(struct block * buf) {
             if (curcol) curcol--;
             ui_show_header();
             ui_update(1);
-            //sc_debug("h");
             break;
 
         case L'k':
             if (currow) currow--;
             ui_show_header();
             ui_update(1);
-            //sc_debug("k");
             break;
 
         case L'j':
             currow++;
             ui_show_header();
             ui_update(1);
-            //sc_debug("j");
             break;
 
         case L'u':
@@ -315,7 +315,6 @@ void do_normalmode(struct block * buf) {
             int off_rows = calc_offscr_sc_rows();
             int mxcol = offscr_sc_cols + off_cols - 1;
             int mxrow = offscr_sc_rows + off_rows - 1;
-            //sc_debug("++%d %d++%d %d", mxrow, mxcol, off_rows, off_cols);
             ui_show_content(main_win, offscr_sc_rows + off_rows -1, offscr_sc_cols + off_cols - 1);
             break;
         case L'q':
@@ -458,23 +457,21 @@ void ui_update(int header) {
 
 
 void ui_show_content(WINDOW * win, int mxrow, int mxcol) {
-    int ri = offscr_sc_rows + 1;
-    int ci = offscr_sc_cols + 1;
+    int ri = offscr_sc_rows;
+    int ci = offscr_sc_cols;
     //sc_debug("++%d %d++%d %d", mxrow, mxcol, ri, ci);
     int r, c;
 
     msgpack_unpacker unp;
-    bool result = msgpack_unpacker_init(&unp, 1024);
+    bool result;
 
-    ri=3;
-    ci=2;
-    for (r=ri; r<=mxrow && r == 3; r++) {
-        for (c=ci; c<=mxcol && c == 2; c++) {
-    //for (r=ri; r<=mxrow; r++) {
-    //    for (c=ci; c<=mxcol; c++) {
-            //sc_debug("%d %d", r, c);
-            //int r = 3;
-            //int c = 2;
+    //r = 3;
+    //c = 2;
+    //for (r=ri; r<mxrow && r == 3; r++) {
+    //    for (c=ci; c<mxcol && c==2; c++) {
+    for (r=ri; r<mxrow; r++) {
+        for (c=ci; c<mxcol; c++) {
+            result = msgpack_unpacker_init(&unp, 1024);
 
             msgpack_pack_map(&pk, 3);
 
@@ -484,12 +481,13 @@ void ui_show_content(WINDOW * win, int mxrow, int mxcol) {
 
             msgpack_pack_str(&pk, 6);
             msgpack_pack_str_body(&pk, "method", 6);
-            msgpack_pack_str(&pk, 8);
-            msgpack_pack_str_body(&pk, "get_cell", 8);
+            msgpack_pack_str(&pk, 9);
+            msgpack_pack_str_body(&pk, "get_cell", 9);
 
             msgpack_pack_str(&pk, 6);
             msgpack_pack_str_body(&pk, "params", 6);
             msgpack_pack_map(&pk, 2);
+            //msgpack_pack_map(&pk, 4);
 
             msgpack_pack_str(&pk, 3);
             msgpack_pack_str_body(&pk, "row", 3);
@@ -499,12 +497,22 @@ void ui_show_content(WINDOW * win, int mxrow, int mxcol) {
             msgpack_pack_str_body(&pk, "col", 3);
             msgpack_pack_int(&pk, c);
 
+            /*
+            msgpack_pack_str(&pk, 6);
+            msgpack_pack_str_body(&pk, "to_row", 6);
+            msgpack_pack_int(&pk, mxrow);
+
+            msgpack_pack_str(&pk, 6);
+            msgpack_pack_str_body(&pk, "to_col", 6);
+            msgpack_pack_int(&pk, mxcol);
+            */
+
             send(sock, sbuf.data, sbuf.size, 0 );
             msgpack_sbuffer_clear(&sbuf);
 
             //if (result) sc_debug("\nok init\n");
 
-            // get cell
+            // get cells content
             valread = read(sock, buffer, 1024);
             if (valread > 0) {
                 memcpy(msgpack_unpacker_buffer(&unp), buffer, 1024);
@@ -521,17 +529,21 @@ void ui_show_content(WINDOW * win, int mxrow, int mxcol) {
                 initialize_msg(&m);
                 if (q.type == MSGPACK_OBJECT_MAP) {
                     unpack_msg(q, &m); // unpack object received (q) to (msg) m
-                    if (m.val != NULL) {
-                        mvwprintw(win, r + RESROW - 1, FIXED_COLWIDTH * c + RESCOL, "%f", *(m.val));
+
+                    if (*(m.ret) == 0 && m.val != NULL) {
+                        r = *(m.row);
+                        c = *(m.col);
+                        mvwprintw(win, r + RESROW - 1, (FIXED_COLWIDTH * c) + RESCOL, "%f", *(m.val));
                         wclrtoeol(win);
                     }
                 }
                 free_msg(&m);
                 msgpack_unpacked_destroy(&und);
+
             }
+            msgpack_unpacker_destroy(&unp);
         }
     }
-    msgpack_unpacker_destroy(&unp);
     return;
 }
 
@@ -731,16 +743,6 @@ int get_val(int row, int col, float * res) {
 
         //msgpack_object_print(stdout, q);
 
-        /* if (
-           q.type == MSGPACK_OBJECT_MAP && q.via.map.size == 2 &&
-           ! strncmp(q.via.map.ptr->key.via.str.ptr, "ret", 3) &&
-           ((int) q.via.map.ptr->val.via.u64 == 0) &&
-           ! strncmp(((q.via.map.ptr)+1)->key.via.str.ptr, "val", 3)
-           ) {
-            *res = ((q.via.map.ptr)+1)->val.via.f64;
-            found = 1;
-        } */
-
         msg m;
         initialize_msg(&m);
         if (q.type == MSGPACK_OBJECT_MAP) {
@@ -845,7 +847,7 @@ void remove_sheet() {
     return;
 }
 
-/* unpacka msg from a map in a msgpack object */
+/* unpack a msg from a map in a msgpack object */
 void unpack_msg(msgpack_object o, msg * m) {
     int size = o.via.map.size;
 
@@ -862,21 +864,41 @@ void unpack_msg(msgpack_object o, msg * m) {
             } else if (! strncmp(p->key.via.str.ptr, "row", p->key.via.str.size)) {
                 m->row = (int *) malloc(sizeof(int));
                 *(m->row) = p->val.via.u64;
+            } else if (! strncmp(p->key.via.str.ptr, "ret", p->key.via.str.size)) {
+                m->ret = (int *) malloc(sizeof(int));
+                *(m->ret) = p->val.via.u64;
             } else if (! strncmp(p->key.via.str.ptr, "col", p->key.via.str.size)) {
                 m->col = (int *) malloc(sizeof(int));
                 *(m->col) = p->val.via.u64;
+          /*} else if (! strncmp(p->key.via.str.ptr, "to_row", p->key.via.str.size)) {
+                m->to_row = (int *) malloc(sizeof(int));
+                *(m->to_row) = p->val.via.u64;
+            } else if (! strncmp(p->key.via.str.ptr, "to_col", p->key.via.str.size)) {
+                m->to_col = (int *) malloc(sizeof(int));
+                *(m->to_col) = p->val.via.u64;*/
             } else if (! strncmp(p->key.via.str.ptr, "bye", p->key.via.str.size)) {
                 m->bye = (short *) malloc(sizeof(short));
                 *(m->bye) = p->val.via.u64;
             } else if (! strncmp(p->key.via.str.ptr, "val", p->key.via.str.size)) {
                 m->val = (double *) malloc(sizeof(double));
                 *(m->val) = p->val.via.f64;
+            } else if (! strncmp(p->key.via.str.ptr, "flag", p->key.via.str.size)) {
+                m->flag = (short *) malloc(sizeof(short));
+                *(m->flag) = p->val.via.u64;
+            } else if (! strncmp(p->key.via.str.ptr, "formula", p->key.via.str.size)) {
+                m->formula = (char *) malloc(sizeof(char) * (p->val.via.str.size + 1));
+                sprintf(m->formula, "%.*s", p->val.via.str.size, p->val.via.str.ptr);
             } else if (! strncmp(p->key.via.str.ptr, "method", p->key.via.str.size)) {
                 m->method = (char *) malloc(sizeof(char) * (p->val.via.str.size + 1));
                 sprintf(m->method, "%.*s", p->val.via.str.size, p->val.via.str.ptr);
             } else if (! strncmp(p->key.via.str.ptr, "name", p->key.via.str.size)) {
                 m->name = (char *) malloc(sizeof(char) * (p->val.via.str.size + 1));
                 sprintf(m->name, "%.*s", p->val.via.str.size, p->val.via.str.ptr);
+            } else if (! strncmp(p->key.via.str.ptr, "label", p->key.via.str.size)) {
+                m->label = (char *) malloc(sizeof(char) * (p->val.via.str.size + 1));
+                sprintf(m->label, "%.*s", p->val.via.str.size, p->val.via.str.ptr);
+            } else if (! strncmp(p->key.via.str.ptr, "cell", p->key.via.str.size)) {
+                unpack_msg(p->val, m);
             }
 
         } else if (p->val.type == MSGPACK_OBJECT_MAP) {
@@ -890,13 +912,16 @@ void free_msg(msg * m) {
     if (m->method != NULL)  free(m->method);
     if (m->name != NULL)    free(m->name);
     if (m->id  != NULL)     free(m->id);
+    if (m->ret != NULL)     free(m->ret);
     if (m->row != NULL)     free(m->row);
     if (m->col != NULL)     free(m->col);
+    if (m->to_row != NULL)  free(m->to_row);
+    if (m->to_col != NULL)  free(m->to_col);
     if (m->bye != NULL)     free(m->bye);
     if (m->val != NULL)     free(m->val);
     if (m->label != NULL)   free(m->label);
     if (m->formula != NULL) free(m->formula);
-    if (m->flags != NULL)   free(m->flags);
+    if (m->flag != NULL)    free(m->flag);
     return;
 }
 
@@ -904,13 +929,15 @@ void initialize_msg(msg * m) {
     m->method = NULL;
     m->name = NULL;
     m->id  = NULL;
+    m->ret = NULL;
     m->row = NULL;
     m->col = NULL;
+    m->to_row = NULL;
+    m->to_col = NULL;
     m->val = NULL;
     m->label = NULL;
     m->formula = NULL;
-    m->flags = NULL;
+    m->flag = NULL;
     m->bye = NULL;
     return;
 }
-

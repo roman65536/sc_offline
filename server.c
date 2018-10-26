@@ -33,10 +33,12 @@ typedef struct {
     char * name;      // sheet_name
     int * row;
     int * col;
+    int * to_row;
+    int * to_col;
     short * bye;
     double * val;     // ent value
     char * label;     // ent label
-    short * flags;    // ent flags
+    short * flag;     // ent flag
     short * formula;  // ent formula
 } msg;
 
@@ -236,6 +238,7 @@ int process_msg(int msocket, msgpack_object o, msgpack_sbuffer * sbuf) {
         decompress_msg(o, &m);
         debug_msg(&m);
 
+
         if (! strncmp(m.method, "create_sheet", 12)) {
             struct roman * cur_sesn = get_session(*(m.id));
             struct Sheet * sh = new_sheet(cur_sesn, m.name);
@@ -314,55 +317,170 @@ int process_msg(int msocket, msgpack_object o, msgpack_sbuffer * sbuf) {
             msgpack_sbuffer_clear(sbuf);
             printf("\nfin server get_val\n");
 
-        } else if (! strncmp(m.method, "get_cell", 8)) {
-            printf("\nin server get_cell\n");
+        } else if (! strncmp(m.method, "get_cells", 9)) {
+            printf("\nin server get_cells\n");
             struct roman * cur_sesn = get_session (*(m.id));
-            struct Ent * e1 = lookat(cur_sesn->cur_sh, *(m.row), *(m.col));
             /* TODO: should return -1 if session not found
                      should return -2 if sheet not found */
 
-            int count = 0; /* we need to send the number of (key,values) in the first place */
-            if (e1->val)     count++;
-            if (e1->label)   count++;
-            if (e1->formula) count++;
-            if (e1->label)   count++;
-
-            msgpack_pack_map(&pk, count+1);
+            msgpack_pack_map(&pk, 3);
 
             msgpack_pack_str(&pk, 3);
             msgpack_pack_str_body(&pk, "ret", 3);
             msgpack_pack_short(&pk, 0);
 
-            // only pack whats is needed
-            if (e1->val) {
-                msgpack_pack_str(&pk, 3);
-                msgpack_pack_str_body(&pk, "val", 3);
-                msgpack_pack_float(&pk, e1->val);
+            /* count the number of ents to be returned */
+            int ri = *(m.row);
+            int ci = *(m.col);
+            int rf = *(m.to_row);
+            int cf = *(m.to_col);
+            int r,c;
+            register struct Ent ** pp;
+            struct Ent * e1;
+            int count = 0; // we need to count the cells we are going to send
+            for (r=ri; r<rf; r++) {
+                for (c=ci; c<cf; c++) {
+                    pp = ATBL(cur_sesn->cur_sh, cur_sesn->cur_sh->tbl, r, c);
+                    if ((pp !=0 ) && (*pp != 0)) count++;
+                }
             }
 
-            if (e1->label) {
-                msgpack_pack_str(&pk, 5);
-                msgpack_pack_str_body(&pk, "label", 7);
-                msgpack_pack_str(&pk, e1->label != NULL ? strlen(e1->label) : 0);
-                msgpack_pack_str_body(&pk, e1->label != NULL ? e1->label : "", e1->label != NULL ? strlen(e1->label) : 0);
-            }
+            msgpack_pack_str(&pk, 5);
+            msgpack_pack_str_body(&pk, "count", 5);
+            msgpack_pack_short(&pk, count);
 
-            if (e1->formula) {
-                msgpack_pack_str(&pk, 7);
-                msgpack_pack_str_body(&pk, "formula", 7);
-                msgpack_pack_str(&pk, e1->formula != NULL ? strlen(e1->formula) : 0);
-                msgpack_pack_str_body(&pk, e1->formula != NULL ? e1->formula : "", e1->formula != NULL ? strlen(e1->formula) : 0);
-            }
+            msgpack_pack_str(&pk, 5);
+            msgpack_pack_str_body(&pk, "cells", 5);
+            msgpack_pack_map(&pk, count);
 
-            if (e1->flag) {
-                msgpack_pack_str(&pk, 4);
-                msgpack_pack_str_body(&pk, "flag", 4);
-                msgpack_pack_short(&pk, e1->flag);
+            int attr_count; /* we need to send the number of (key,values) in the first place. row and col are already counted*/
+
+            for (r=ri; r<rf; r++) {
+                for (c=ci; c<cf; c++) {
+                    pp = ATBL(cur_sesn->cur_sh, cur_sesn->cur_sh->tbl, r, c);
+                    if ((pp !=0 ) && (*pp != 0)) {
+                        e1 = *pp;
+                        attr_count = 2;
+                        if (e1->val)     attr_count++;
+                        if (e1->label)   attr_count++;
+                        if (e1->formula) attr_count++;
+                        if (e1->flag)    attr_count++;
+                        msgpack_pack_str(&pk, 4);
+                        msgpack_pack_str_body(&pk, "cell", 4);
+                        msgpack_pack_map(&pk, attr_count);
+
+                        // only pack whats is needed
+                        msgpack_pack_str(&pk, 3);
+                        msgpack_pack_str_body(&pk, "row", 3);
+                        msgpack_pack_float(&pk, e1->row);
+                        msgpack_pack_str(&pk, 3);
+                        msgpack_pack_str_body(&pk, "col", 3);
+                        msgpack_pack_float(&pk, e1->col);
+                        if (e1->val) {
+                            msgpack_pack_str(&pk, 3);
+                            msgpack_pack_str_body(&pk, "val", 3);
+                            msgpack_pack_float(&pk, e1->val);
+                        }
+
+                        if (e1->label) {
+                            msgpack_pack_str(&pk, 5);
+                            msgpack_pack_str_body(&pk, "label", 5);
+                            msgpack_pack_str(&pk, e1->label != NULL ? strlen(e1->label) : 0);
+                            msgpack_pack_str_body(&pk, e1->label != NULL ? e1->label : "", e1->label != NULL ? strlen(e1->label) : 0);
+                        }
+
+                        if (e1->formula) {
+                            msgpack_pack_str(&pk, 7);
+                            msgpack_pack_str_body(&pk, "formula", 7);
+                            msgpack_pack_str(&pk, e1->formula != NULL ? strlen(e1->formula) : 0);
+                            msgpack_pack_str_body(&pk, e1->formula != NULL ? e1->formula : "", e1->formula != NULL ? strlen(e1->formula) : 0);
+                        }
+
+                        if (e1->flag) {
+                            msgpack_pack_str(&pk, 4);
+                            msgpack_pack_str_body(&pk, "flag", 4);
+                            msgpack_pack_short(&pk, e1->flag);
+                        }
+                    }
+                }
             }
 
             send(msocket, sbuf->data, sbuf->size, 0 );
             msgpack_sbuffer_clear(sbuf);
 
+            printf("\nfin server get_cells\n");
+
+        } else if (! strncmp(m.method, "get_cell", 8)) {
+            printf("\nin server get_cell\n");
+            struct roman * cur_sesn = get_session (*(m.id));
+            /* TODO: should return -1 if session not found
+                     should return -2 if sheet not found */
+
+
+            int attr_count; /* we need to send the number of (key,values) in the first place. row and col are already counted*/
+            int row = *(m.row);
+            int col = *(m.col);
+
+            register struct Ent ** pp;
+            struct Ent * e1;
+            pp = ATBL(cur_sesn->cur_sh, cur_sesn->cur_sh->tbl, row, col);
+            if ((pp !=0 ) && (*pp != 0)) {
+                msgpack_pack_map(&pk, 2);
+
+                msgpack_pack_str(&pk, 3);
+                msgpack_pack_str_body(&pk, "ret", 3);
+                msgpack_pack_short(&pk, 0);
+                e1 = *pp;
+                attr_count = 2;
+                if (e1->val)     attr_count++;
+                if (e1->label)   attr_count++;
+                if (e1->formula) attr_count++;
+                if (e1->flag)    attr_count++;
+                msgpack_pack_str(&pk, 4);
+                msgpack_pack_str_body(&pk, "cell", 4);
+                msgpack_pack_map(&pk, attr_count);
+
+                // only pack whats is needed
+                msgpack_pack_str(&pk, 3);
+                msgpack_pack_str_body(&pk, "row", 3);
+                msgpack_pack_int(&pk, e1->row);
+                msgpack_pack_str(&pk, 3);
+                msgpack_pack_str_body(&pk, "col", 3);
+                msgpack_pack_int(&pk, e1->col);
+                if (e1->val) {
+                    msgpack_pack_str(&pk, 3);
+                    msgpack_pack_str_body(&pk, "val", 3);
+                    msgpack_pack_float(&pk, e1->val);
+                }
+
+                if (e1->label) {
+                    msgpack_pack_str(&pk, 5);
+                    msgpack_pack_str_body(&pk, "label", 5);
+                    msgpack_pack_str(&pk, e1->label != NULL ? strlen(e1->label) : 0);
+                    msgpack_pack_str_body(&pk, e1->label != NULL ? e1->label : "", e1->label != NULL ? strlen(e1->label) : 0);
+                }
+
+                if (e1->formula) {
+                    msgpack_pack_str(&pk, 7);
+                    msgpack_pack_str_body(&pk, "formula", 7);
+                    msgpack_pack_str(&pk, e1->formula != NULL ? strlen(e1->formula) : 0);
+                    msgpack_pack_str_body(&pk, e1->formula != NULL ? e1->formula : "", e1->formula != NULL ? strlen(e1->formula) : 0);
+                }
+
+                if (e1->flag) {
+                    msgpack_pack_str(&pk, 4);
+                    msgpack_pack_str_body(&pk, "flag", 4);
+                    msgpack_pack_short(&pk, e1->flag);
+                }
+            } else {
+                msgpack_pack_map(&pk, 1);
+
+                msgpack_pack_str(&pk, 3);
+                msgpack_pack_str_body(&pk, "ret", 3);
+                msgpack_pack_short(&pk, -1);
+            }
+            send(msocket, sbuf->data, sbuf->size, 0 );
+            msgpack_sbuffer_clear(sbuf);
             printf("\nfin server get_cell\n");
 
         } else if (! strncmp("recalc", m.method, 6)) {
@@ -383,7 +501,7 @@ void decompress_msg(msgpack_object o, msg * m) {
 
         while (p < pend) {
             if (p->key.type == MSGPACK_OBJECT_STR) {
-                //printf("key: %.*s\n", p->key.via.str.size, p->key.via.str.ptr);
+                printf("key: %.*s\n", p->key.via.str.size, p->key.via.str.ptr);
 
                 if (m->id == NULL && ! strncmp(p->key.via.str.ptr, "id", p->key.via.str.size)) {
                     m->id = (int *) malloc(sizeof(int));
@@ -394,6 +512,12 @@ void decompress_msg(msgpack_object o, msg * m) {
                 } else if (m->col == NULL && ! strncmp(p->key.via.str.ptr, "col", p->key.via.str.size)) {
                     m->col = (int *) malloc(sizeof(int));
                     *(m->col) = p->val.via.u64;
+                } else if (m->to_row == NULL && ! strncmp(p->key.via.str.ptr, "to_row", p->key.via.str.size)) {
+                    m->to_row = (int *) malloc(sizeof(int));
+                    *(m->to_row) = p->val.via.u64;
+                } else if (m->to_col == NULL && ! strncmp(p->key.via.str.ptr, "to_col", p->key.via.str.size)) {
+                    m->to_col = (int *) malloc(sizeof(int));
+                    *(m->to_col) = p->val.via.u64;
                 } else if (m->bye == NULL && ! strncmp(p->key.via.str.ptr, "bye", p->key.via.str.size)) {
                     m->bye = (short *) malloc(sizeof(short));
                     *(m->bye) = p->val.via.u64;
@@ -432,10 +556,12 @@ void initialize_msg(msg * m) {
     m->id  = NULL;
     m->row = NULL;
     m->col = NULL;
+    m->to_row = NULL;
+    m->to_col = NULL;
     m->val = NULL;
     m->label = NULL;
     m->formula = NULL;
-    m->flags = NULL;
+    m->flag = NULL;
     m->bye = NULL;
     return;
 }
@@ -446,10 +572,12 @@ void free_msg(msg * m) {
     if (m->id  != NULL)     free(m->id);
     if (m->row != NULL)     free(m->row);
     if (m->col != NULL)     free(m->col);
+    if (m->to_row != NULL)  free(m->to_row);
+    if (m->to_col != NULL)  free(m->to_col);
     if (m->val != NULL)     free(m->val);
     if (m->label != NULL)   free(m->label);
     if (m->formula != NULL) free(m->formula);
-    if (m->flags != NULL)   free(m->flags);
+    if (m->flag != NULL)   free(m->flag);
     if (m->bye != NULL)     free(m->bye);
     return;
 }
@@ -459,9 +587,11 @@ void debug_msg(msg * m) {
     if (m->id != NULL)       printf("m.id: %d\n", *(m->id));
     if (m->row != NULL)      printf("m.row: %d\n", *(m->row));
     if (m->col != NULL)      printf("m.col: %d\n", *(m->col));
+    if (m->to_row != NULL)   printf("m.to_row: %d\n", *(m->to_row));
+    if (m->to_col != NULL)   printf("m.to_col: %d\n", *(m->to_col));
     if (m->method != NULL)   printf("m.method: %s\n", (m->method));
     if (m->name != NULL)     printf("m.name: %s\n", (m->name));
     if (m->val != NULL)      printf("m.val: %f\n", *(m->val));
     if (m->label != NULL)    printf("m.label: %s\n", (m->label));
-    if (m->flags != NULL)    printf("m.flags: %d\n", *(m->flags));
+    if (m->flag != NULL)     printf("m.flag: %d\n", *(m->flag));
 }
