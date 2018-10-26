@@ -279,29 +279,34 @@ void handle_input(struct block * buffer) {
 
 
 void do_normalmode(struct block * buf) {
+    int off_cols = calc_offscr_sc_cols();
+    int off_rows = calc_offscr_sc_rows();
     switch (buf->value) {
         case L'l':
             curcol++;
-            ui_show_header();
+            ui_show_content(main_win, offscr_sc_rows + off_rows -1, offscr_sc_cols + off_cols - 1);
+            //ui_show_header();
             ui_update(1);
-            //sc_debug("l");
             break;
 
         case L'h':
             if (curcol) curcol--;
-            ui_show_header();
+            ui_show_content(main_win, offscr_sc_rows + off_rows -1, offscr_sc_cols + off_cols - 1);
+            //ui_show_header();
             ui_update(1);
             break;
 
         case L'k':
             if (currow) currow--;
-            ui_show_header();
+            ui_show_content(main_win, offscr_sc_rows + off_rows -1, offscr_sc_cols + off_cols - 1);
+            //ui_show_header();
             ui_update(1);
             break;
 
         case L'j':
             currow++;
-            ui_show_header();
+            ui_show_content(main_win, offscr_sc_rows + off_rows -1, offscr_sc_cols + off_cols - 1);
+            //ui_show_header();
             ui_update(1);
             break;
 
@@ -457,6 +462,11 @@ void ui_update(int header) {
 
 
 void ui_show_content(WINDOW * win, int mxrow, int mxcol) {
+
+    // Clean from top to bottom
+    wmove(main_win, RESROW, RESCOL);
+    wclrtobot(main_win);
+
     int ri = offscr_sc_rows;
     int ci = offscr_sc_cols;
     //sc_debug("++%d %d++%d %d", mxrow, mxcol, ri, ci);
@@ -529,19 +539,28 @@ void ui_show_content(WINDOW * win, int mxrow, int mxcol) {
                 initialize_msg(&m);
                 if (q.type == MSGPACK_OBJECT_MAP) {
                     unpack_msg(q, &m); // unpack object received (q) to (msg) m
+                    wattroff(win, A_REVERSE);
+                    if ((currow == r) && (curcol == c)) wattron(win, A_REVERSE);
 
                     if (*(m.ret) == 0 && m.val != NULL) {
                         r = *(m.row);
                         c = *(m.col);
                         mvwprintw(win, r + RESROW - 1, (FIXED_COLWIDTH * c) + RESCOL, "%f", *(m.val));
-                        wclrtoeol(win);
+                    } else if (currow == r && curcol == c) {
+                        wchar_t w = L' ';
+                        int i;
+                        for (i = 0; i < FIXED_COLWIDTH; i++) {
+                            mvwprintw(win, r + RESROW - 1, RESCOL + FIXED_COLWIDTH * c + i, "%lc", w);
+                        }
                     }
+                    wclrtoeol(win);
                 }
                 free_msg(&m);
                 msgpack_unpacked_destroy(&und);
 
             }
             msgpack_unpacker_destroy(&unp);
+            wattroff(win, A_REVERSE);
         }
     }
     return;
