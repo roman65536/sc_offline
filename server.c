@@ -110,21 +110,21 @@ int main(void) {
             return -1;
         }
 
-        if(fcntl(server_fd, F_SETFL, O_NONBLOCK) < 0) {
+        /*if(fcntl(server_fd, F_SETFL, O_NONBLOCK) < 0) {
             printf("!! cannot set socket in non blocking mode");
             return -1;
-        }
+        }*/
         if ((msocket = accept(server_fd, (struct sockaddr *) &address, (socklen_t*) &addrlen))<0) {
             continue;
             //return -1;
         }
         printf("new connection - address:%d port:%d\n", address.sin_addr, address.sin_port);
 
-        // Put the socket in non-blocking mode:
+        /* Put the socket in non-blocking mode:
         if(fcntl(msocket, F_SETFL, fcntl(msocket, F_GETFL) | O_NONBLOCK) < 0) {
             printf("cannot set socket in non blocking mode");
             return -1;
-        }
+        }*/
         if (msocket < 0) {
             printf("ERROR on accept\n");
             continue;
