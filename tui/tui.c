@@ -74,6 +74,8 @@ void create_sheet();
 void remove_sheet();
 int get_val(int row, int col, float * res);
 int set_val(int row, int col, float val);
+int set_label(int row, int col, char * val);
+int get_label(int row, int col, char * val);
 int bye();
 int connect_to_server();
 void unpack_msg(msgpack_object o, msg * m);
@@ -177,6 +179,7 @@ int main (int argc, char ** argv) {
     set_val(0, 0, 4);
     set_val(1, 0, 3);
     set_val(2, 2, 6.7);
+    set_label(4, 4, "OKIDOKI");
 
     //sleep(5);
     //float f;
@@ -589,6 +592,10 @@ void ui_show_content(WINDOW * win, int mxrow, int mxcol) {
                         r = *(m.row);
                         c = *(m.col);
                         mvwprintw(win, r - offscr_sc_rows + RESROW - 1, FIXED_COLWIDTH * (c - offscr_sc_cols) + RESCOL, "%f", *(m.val));
+                    } else if (*(m.ret) == 0 && m.label != NULL) {
+                        r = *(m.row);
+                        c = *(m.col);
+                        mvwprintw(win, r - offscr_sc_rows + RESROW - 1, FIXED_COLWIDTH * (c - offscr_sc_cols) + RESCOL, "%s", m.label);
                     } else if (currow == r && curcol == c) {
                         wchar_t w = L' ';
                         int i;
@@ -607,70 +614,6 @@ void ui_show_content(WINDOW * win, int mxrow, int mxcol) {
     }
     wrefresh(win);
     return;
-}
-
-void ui_show_sc_row_headings(WINDOW * win, int mxrow) {
-    int i, row = 0;
-    for (i = offscr_sc_rows; i <= mxrow; i++, row++) {
-        if (i == currow) wattron(win, A_REVERSE);
-        mvwprintw (win, row+1, 0, "%*d ", rescol-1, i);
-        wattroff(win, A_REVERSE);
-    }
-    wrefresh(win);
-    return;
-}
-
-
-void ui_show_sc_col_headings(WINDOW * win, int mxcol) {
-    int i, col = rescol;
-    wmove(win, 0, 0);
-    wclrtoeol(win);
-
-    //sc_debug("curcol:%d, off:%d mxcol:%d", curcol, offscr_sc_cols, mxcol);
-    for (i = offscr_sc_cols; i <= mxcol; i++) {
-        int k = FIXED_COLWIDTH / 2;
-        if (i == curcol) wattron(win, A_REVERSE);
-        mvwprintw(win, 0, col, "%*s%-*s", k-1, " ", FIXED_COLWIDTH - k + 1, coltoa(i));
-
-        col += FIXED_COLWIDTH;
-        if (i == mxcol && COLS - col > 0) wclrtoeol(win);
-
-        wattroff(win, A_REVERSE);
-    }
-    wrefresh(win);
-}
-
-
-void calc_offscr_sc_rows() {
-    if (offscr_sc_rows && currow >= offscr_sc_rows && currow <= mxrow) return;
-    else if (offscr_sc_rows && currow == offscr_sc_rows - 1) { offscr_sc_rows--; mxrow--; return; }
-    offscr_sc_rows = 0;
-    mxrow = LINES - RESROW - 2;
-    for (; currow > mxrow; offscr_sc_rows++, mxrow++) ;
-    return;
-}
-
-void calc_offscr_sc_cols() {
-    if (offscr_sc_cols && curcol >= offscr_sc_cols && curcol <= mxcol) return;
-    else if (offscr_sc_cols && curcol == offscr_sc_cols - 1) { offscr_sc_cols--; mxcol--; return; }
-    offscr_sc_cols = 0;
-    mxcol = (COLS - RESCOL) / FIXED_COLWIDTH - 1;
-    for (; curcol > mxcol; offscr_sc_cols++, mxcol++) ;
-    return;
-}
-
-
-char * coltoa(int col) {
-    static char rname[3];
-    register char *p = rname;
-
-    if (col > 25) {
-        *p++ = col/26 + 'A' - 1;
-        col %= 26;
-    }
-    *p++ = col+'A';
-    *p = '\0';
-    return (rname);
 }
 
 
@@ -697,7 +640,7 @@ int bye() {
         //FIXME sizeof(..) may differ on sender and receiver machine
         msgpack_unpack(buffer, sizeof(buffer), NULL, &mempool, &p);
 
-        msgpack_object_print(stdout, p);
+        //msgpack_object_print(stdout, p);
 
         // return 0
         if ( p.type == MSGPACK_OBJECT_MAP && p.via.map.size == 2 &&
@@ -751,7 +694,7 @@ int set_val(int row, int col, float val) {
         //FIXME sizeof(..) may differ on sender and receiver machine
         msgpack_unpack(buffer, sizeof(buffer), NULL, &mempool, &p);
 
-        msgpack_object_print(stdout, p);
+        //msgpack_object_print(stdout, p);
 
         // return 0
         if ( p.type == MSGPACK_OBJECT_MAP && p.via.map.size == 2 &&
@@ -829,6 +772,132 @@ int get_val(int row, int col, float * res) {
     return found ? 0 : -1;
 }
 
+// TODO should return 0 when 0 return status is received from server
+int set_label(int row, int col, char * label) {
+    msgpack_pack_map(&pk, 3);
+
+    msgpack_pack_str(&pk, 2);
+    msgpack_pack_str_body(&pk, "id", 2);
+    msgpack_pack_short(&pk, id_session);
+
+    msgpack_pack_str(&pk, 6);
+    msgpack_pack_str_body(&pk, "method", 6);
+    msgpack_pack_str(&pk, 9);
+    msgpack_pack_str_body(&pk, "set_label", 9);
+
+    msgpack_pack_str(&pk, 6);
+    msgpack_pack_str_body(&pk, "params", 6);
+    msgpack_pack_map(&pk, 3);
+
+    msgpack_pack_str(&pk, 3);
+    msgpack_pack_str_body(&pk, "row", 3);
+    msgpack_pack_int(&pk, row);
+
+    msgpack_pack_str(&pk, 3);
+    msgpack_pack_str_body(&pk, "col", 3);
+    msgpack_pack_int(&pk, col);
+
+    msgpack_pack_str(&pk, 5);
+    msgpack_pack_str_body(&pk, "label", 5);
+    msgpack_pack_str(&pk, strlen(label));
+    msgpack_pack_str_body(&pk, label, strlen(label));
+
+    send(sock, sbuf.data, sbuf.size, 0 );
+    msgpack_sbuffer_clear(&sbuf);
+
+    //get OK return status
+    valread = read(sock, buffer, 1024);
+    if (valread > 0) {
+        msgpack_object p;
+
+        //FIXME sizeof(..) may differ on sender and receiver machine
+        msgpack_unpack(buffer, sizeof(buffer), NULL, &mempool, &p);
+
+        //msgpack_object_print(stdout, p);
+
+        // return 0
+        if ( p.type == MSGPACK_OBJECT_MAP && p.via.map.size == 2 &&
+           ! strncmp(p.via.map.ptr->key.via.str.ptr, "ret", 3) &&
+           ((int) p.via.map.ptr->val.via.u64 == 0)) {
+            return 0;
+        }
+    } else if (valread < 0) {
+        sc_debug("nothing to read in socket\n");
+        return -2;
+    }
+    return -1;
+}
+
+// TODO return 0 when ok. -1 when not found/error
+int get_label(int row, int col, char * label) {
+    int found=0;
+
+    msgpack_pack_map(&pk, 3);
+
+    msgpack_pack_str(&pk, 2);
+    msgpack_pack_str_body(&pk, "id", 2);
+    msgpack_pack_short(&pk, id_session);
+
+    msgpack_pack_str(&pk, 6);
+    msgpack_pack_str_body(&pk, "method", 6);
+    msgpack_pack_str(&pk, 9);
+    msgpack_pack_str_body(&pk, "get_label", 9);
+
+    msgpack_pack_str(&pk, 6);
+    msgpack_pack_str_body(&pk, "params", 6);
+    msgpack_pack_map(&pk, 2);
+
+    msgpack_pack_str(&pk, 3);
+    msgpack_pack_str_body(&pk, "row", 3);
+    msgpack_pack_int(&pk, row);
+
+    msgpack_pack_str(&pk, 3);
+    msgpack_pack_str_body(&pk, "col", 3);
+    msgpack_pack_int(&pk, col);
+
+    send(sock, sbuf.data, sbuf.size, 0 );
+    msgpack_sbuffer_clear(&sbuf);
+
+    msgpack_unpacker unp;
+    bool result = msgpack_unpacker_init(&unp, 1024);
+    //if (result) sc_debug("\nok init\n");
+
+    // get value
+    valread = read(sock, buffer, 1024);
+    if (valread > 0) {
+        memcpy(msgpack_unpacker_buffer(&unp), buffer, 1024);
+        msgpack_unpacker_buffer_consumed(&unp, 1024);
+        msgpack_unpacked und;
+        msgpack_unpack_return ret;
+        msgpack_unpacked_init(&und);
+        ret = msgpack_unpacker_next(&unp, &und);
+        //if (ret == MSGPACK_UNPACK_SUCCESS) sc_debug("ok unpacked\n");
+        msgpack_object q = und.data;
+
+        //msgpack_object_print(stdout, q);
+
+        msg m;
+        initialize_msg(&m);
+        if (q.type == MSGPACK_OBJECT_MAP) {
+            unpack_msg(q, &m); /* unpack object received (q) to (msg) m */
+            label = malloc(sizeof(char) * strlen(m.label)+1);
+            strcpy(label, m.label);
+            found = 1;
+        }
+        free_msg(&m);
+
+        msgpack_unpacked_destroy(&und);
+    }
+    msgpack_unpacker_destroy(&unp);
+    return found ? 0 : -1;
+}
+
+
+
+
+
+
+
 // TODO return 0 when ok. -1 when not found/error
 void send_helo() {
     // pack HELO
@@ -883,7 +952,7 @@ void create_sheet() {
     if (valread > 0) {
         msgpack_object o;
         msgpack_unpack(buffer, sizeof(buffer), NULL, &mempool, &o);
-        msgpack_object_print(stdout, o);
+        //msgpack_object_print(stdout, o);
     }
 }
 
@@ -913,7 +982,7 @@ void remove_sheet() {
     if (valread > 0) {
         msgpack_object o;
         msgpack_unpack(buffer, sizeof(buffer), NULL, &mempool, &o);
-        msgpack_object_print(stdout, o);
+        //msgpack_object_print(stdout, o);
     }
     return;
 }
@@ -1013,6 +1082,33 @@ void initialize_msg(msg * m) {
     return;
 }
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 void clean_cursor(WINDOW * win) {
     wattroff(win, A_REVERSE);
 
@@ -1049,3 +1145,68 @@ void high_cursor(WINDOW * win) {
     wrefresh(win);
     return;
 }
+
+void ui_show_sc_row_headings(WINDOW * win, int mxrow) {
+    int i, row = 0;
+    for (i = offscr_sc_rows; i <= mxrow; i++, row++) {
+        if (i == currow) wattron(win, A_REVERSE);
+        mvwprintw (win, row+1, 0, "%*d ", rescol-1, i);
+        wattroff(win, A_REVERSE);
+    }
+    wrefresh(win);
+    return;
+}
+
+
+void ui_show_sc_col_headings(WINDOW * win, int mxcol) {
+    int i, col = rescol;
+    wmove(win, 0, 0);
+    wclrtoeol(win);
+
+    //sc_debug("curcol:%d, off:%d mxcol:%d", curcol, offscr_sc_cols, mxcol);
+    for (i = offscr_sc_cols; i <= mxcol; i++) {
+        int k = FIXED_COLWIDTH / 2;
+        if (i == curcol) wattron(win, A_REVERSE);
+        mvwprintw(win, 0, col, "%*s%-*s", k-1, " ", FIXED_COLWIDTH - k + 1, coltoa(i));
+
+        col += FIXED_COLWIDTH;
+        if (i == mxcol && COLS - col > 0) wclrtoeol(win);
+
+        wattroff(win, A_REVERSE);
+    }
+    wrefresh(win);
+}
+
+
+void calc_offscr_sc_rows() {
+    if (offscr_sc_rows && currow >= offscr_sc_rows && currow <= mxrow) return;
+    else if (offscr_sc_rows && currow == offscr_sc_rows - 1) { offscr_sc_rows--; mxrow--; return; }
+    offscr_sc_rows = 0;
+    mxrow = LINES - RESROW - 2;
+    for (; currow > mxrow; offscr_sc_rows++, mxrow++) ;
+    return;
+}
+
+void calc_offscr_sc_cols() {
+    if (offscr_sc_cols && curcol >= offscr_sc_cols && curcol <= mxcol) return;
+    else if (offscr_sc_cols && curcol == offscr_sc_cols - 1) { offscr_sc_cols--; mxcol--; return; }
+    offscr_sc_cols = 0;
+    mxcol = (COLS - RESCOL) / FIXED_COLWIDTH - 1;
+    for (; curcol > mxcol; offscr_sc_cols++, mxcol++) ;
+    return;
+}
+
+
+char * coltoa(int col) {
+    static char rname[3];
+    register char *p = rname;
+
+    if (col > 25) {
+        *p++ = col/26 + 'A' - 1;
+        col %= 26;
+    }
+    *p++ = col+'A';
+    *p = '\0';
+    return (rname);
+}
+
