@@ -9,6 +9,7 @@
 #include <pthread.h>
 #include <unistd.h> //close
 #include <signal.h> // for SIGINT
+#include <stdarg.h> // for VA_ARGS
 #include "session.h"
 #include "sheet.h"
 #include "rpsc.h"
@@ -16,6 +17,8 @@
 /* DEFINES */
 #define PORT 1234
 #define MAXCLIENTS 3
+#define DEBUG 0
+#define printd(x, ...) sc_server_debug(x, ##__VA_ARGS__)
 
 /* STRUCTS */
 /* Used as argument to thread_start() */
@@ -49,6 +52,8 @@ void initialize_msg(msg * m);
 void free_msg(msg * m);
 void decompress_msg(msgpack_object o, msg * m);
 void debug_msg(msg * m);
+void sc_server_debug(char * s, ...);
+
 
 /* GLOBAL VARIABLES */
 msgpack_packer pk;
@@ -62,7 +67,7 @@ int server_fd;
 
 void SIGINT_handler(int dummy) {
     got_SIGINT = 1;
-    printf("Got SIGINT. Shutting down server\n");
+    printd("%s", "Got SIGINT. Shutting down server\n");
 }
 
 int main(void) {
@@ -75,14 +80,14 @@ int main(void) {
 
     // Creating socket file descriptor
     if ((server_fd = socket(AF_INET, SOCK_STREAM, 0)) == 0) {
-        printf("socket failed");
+        printd("socket failed");
         return -1;
     }
 
     // Forcefully attaching socket to the port PORT
     // prevents “address already in use”.
     if (setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, &opt, sizeof(opt))) {
-        printf("setsockopt");
+        printd("setsockopt");
         return -1;
     }
 
@@ -92,7 +97,7 @@ int main(void) {
     address.sin_port = htons( PORT );
 
     if (bind(server_fd, (struct sockaddr *) &address, sizeof(address)) < 0) {
-        printf("bind failed");
+        printd("bind failed");
         return -1;
     }
 
@@ -106,27 +111,27 @@ int main(void) {
 
         // check number of clients
         if (listen(server_fd, MAXCLIENTS) < 0) {
-            printf("listen failure");
+            printd("listen failure");
             return -1;
         }
 
         /*if(fcntl(server_fd, F_SETFL, O_NONBLOCK) < 0) {
-            printf("!! cannot set socket in non blocking mode");
+            printd("!! cannot set socket in non blocking mode");
             return -1;
         }*/
         if ((msocket = accept(server_fd, (struct sockaddr *) &address, (socklen_t*) &addrlen))<0) {
             continue;
             //return -1;
         }
-        printf("new connection - address:%d port:%d\n", address.sin_addr, address.sin_port);
+        printd("new connection - address:%d port:%d\n", address.sin_addr, address.sin_port);
 
         /* Put the socket in non-blocking mode:
         if(fcntl(msocket, F_SETFL, fcntl(msocket, F_GETFL) | O_NONBLOCK) < 0) {
-            printf("cannot set socket in non blocking mode");
+            printd("cannot set socket in non blocking mode");
             return -1;
         }*/
         if (msocket < 0) {
-            printf("ERROR on accept\n");
+            printd("ERROR on accept\n");
             continue;
         }
 
@@ -143,11 +148,11 @@ int main(void) {
 
 
     // wait for threads to finish
-    printf("waiting for threads to finish");
+    printd("waiting for threads to finish");
     for (i=0; i<intLanzados; i++) {
         stat = pthread_join(thLanzados[i].thread_id, NULL);
         if (0 != stat) {
-            printf("error waiting threads to finish\n");
+            printd("error waiting threads to finish\n");
             return -1;
         }
     }
@@ -158,12 +163,22 @@ int main(void) {
     return 0;
 }
 
+void sc_server_debug(char * s, ...) {
+    if (! DEBUG) return;
+    char t[256];
+    va_list args;
+    va_start(args, s);
+    vsprintf (t, s, args);
+    printf("%s", t);
+    va_end(args);
+}
+
 void * handle_new_connection(void * arg) {
     struct thread_info * ti = arg;
     int tid = ti->thread_id;
     int msocket = ti->msocket;
     char buffer[1024] = {0};
-    printf("new   thread: %d\n", msocket);
+    printd("new   thread: %d\n", msocket);
     int valread;
     msgpack_sbuffer sbuf;
 
@@ -191,13 +206,13 @@ void * handle_new_connection(void * arg) {
 
             res = process_msg(msocket, deserialized, &sbuf);
 
-            //if (valread == 4) printf("msg from %d %d: %s %d\n", s.sin_addr, s.sin_port, buffer, sizeof(buffer));
+            //if (valread == 4) printd("msg from %d %d: %s %d\n", s.sin_addr, s.sin_port, buffer, sizeof(buffer));
 
         }
     }
 
     close(msocket);
-    printf("closed socket: %d\n", msocket);
+    printd("closed socket: %d\n", msocket);
     msgpack_sbuffer_destroy(&sbuf);
     return NULL;
 }
@@ -207,16 +222,16 @@ void * handle_new_connection(void * arg) {
    return 1 on exit (close session)
 */
 int process_msg(int msocket, msgpack_object o, msgpack_sbuffer * sbuf) {
-    printf("\nprocess msg from: %d - type:%d\n\\\t->", msocket, o.type);
+    printd("\nprocess msg from: %d - type:%d\n\\\t->", msocket, o.type);
     //msgpack_object_print(stdout, o);
-    //printf("\n\n");
+    printd("\n\n");
 
     // HANDLE HELO and create a new session
     if (o.type == MSGPACK_OBJECT_STR && ! strcmp(o.via.str.ptr, "HELO")) {
-        //printf("got: %s\n", o);
+        printd("got: %s\n", o);
         // create new session
         int id_session = create_session();
-        printf("created session #: %d\n", id_session);
+        printd("created session #: %d\n", id_session);
 
         msgpack_pack_map(&pk, 1);
         msgpack_pack_str(&pk, 2);
@@ -279,7 +294,7 @@ int process_msg(int msocket, msgpack_object o, msgpack_sbuffer * sbuf) {
             return 1;
 
         } else if (! strncmp(m.method, "set_val", 7)) {
-            printf("\nin server set_val\n");
+            printd("\nin server set_val\n");
             struct roman * cur_sesn = get_session (*(m.id));
             struct Ent * t = lookat(cur_sesn->cur_sh, *(m.row), *(m.col)); // USES CURRENT SHEET
             /* TODO: should return -1 if session not found
@@ -295,15 +310,15 @@ int process_msg(int msocket, msgpack_object o, msgpack_sbuffer * sbuf) {
 
             send(msocket, sbuf->data, sbuf->size, 0 );
             msgpack_sbuffer_clear(sbuf);
-            printf("\nfin server set_val\n");
+            printd("\nfin server set_val\n");
 
         } else if (! strncmp(m.method, "get_val", 7)) {
-            printf("\nin server get_val\n");
+            printd("\nin server get_val\n");
             struct roman * cur_sesn = get_session (*(m.id));
             struct Ent * e1 = lookat(cur_sesn->cur_sh, *(m.row), *(m.col));
             /* TODO: should return -1 if session not found
                      should return -2 if sheet not found */
-            printf("e1->val: %f", e1->val);
+            printd("e1->val: %f", e1->val);
 
             msgpack_pack_map(&pk, 2);
             msgpack_pack_str(&pk, 3);
@@ -315,10 +330,51 @@ int process_msg(int msocket, msgpack_object o, msgpack_sbuffer * sbuf) {
 
             send(msocket, sbuf->data, sbuf->size, 0 );
             msgpack_sbuffer_clear(sbuf);
-            printf("\nfin server get_val\n");
+            printd("\nfin server get_val\n");
+
+        } else if (! strncmp(m.method, "set_label", 9)) {
+            printd("\nin server set_label\n");
+            struct roman * cur_sesn = get_session (*(m.id));
+            struct Ent * t = lookat(cur_sesn->cur_sh, *(m.row), *(m.col)); // USES CURRENT SHEET
+            /* TODO: should return -1 if session not found
+                     should return -2 if sheet not found */
+            t->flag |= RP_LABEL;
+            printd("label:%s", m.label);
+            t->label = malloc(sizeof(char) * strlen(m.label) + 1);
+            strcpy(t->label, m.label);
+
+            // return an OK msg to client
+            msgpack_pack_map(&pk, 1);
+            msgpack_pack_str(&pk, 3);
+            msgpack_pack_str_body(&pk, "ret", 3);
+            msgpack_pack_short(&pk, 0);
+
+            send(msocket, sbuf->data, sbuf->size, 0 );
+            msgpack_sbuffer_clear(sbuf);
+            printd("\nfin server set_label\n");
+
+        } else if (! strncmp(m.method, "get_label", 9)) {
+            printd("\nin server get_val\n");
+            struct roman * cur_sesn = get_session (*(m.id));
+            struct Ent * e1 = lookat(cur_sesn->cur_sh, *(m.row), *(m.col));
+            /* TODO: should return -1 if session not found
+                     should return -2 if sheet not found */
+
+            msgpack_pack_map(&pk, 2);
+            msgpack_pack_str(&pk, 3);
+            msgpack_pack_str_body(&pk, "ret", 3);
+            msgpack_pack_short(&pk, 0);
+            msgpack_pack_str(&pk, 5);
+            msgpack_pack_str_body(&pk, "label", 5);
+            msgpack_pack_str(&pk, strlen(e1->label));
+            msgpack_pack_str_body(&pk, e1->label, strlen(e1->label));
+
+            send(msocket, sbuf->data, sbuf->size, 0 );
+            msgpack_sbuffer_clear(sbuf);
+            printd("\nfin server get_label\n");
 
         } else if (! strncmp(m.method, "get_cells", 9)) {
-            printf("\nin server get_cells\n");
+            printd("\nin server get_cells\n");
             struct roman * cur_sesn = get_session (*(m.id));
             /* TODO: should return -1 if session not found
                      should return -2 if sheet not found */
@@ -408,10 +464,10 @@ int process_msg(int msocket, msgpack_object o, msgpack_sbuffer * sbuf) {
             send(msocket, sbuf->data, sbuf->size, 0 );
             msgpack_sbuffer_clear(sbuf);
 
-            printf("\nfin server get_cells\n");
+            printd("\nfin server get_cells\n");
 
         } else if (! strncmp(m.method, "get_cell", 8)) {
-            printf("\nin server get_cell\n");
+            printd("\nin server get_cell\n");
             struct roman * cur_sesn = get_session (*(m.id));
             /* TODO: should return -1 if session not found
                      should return -2 if sheet not found */
@@ -481,7 +537,7 @@ int process_msg(int msocket, msgpack_object o, msgpack_sbuffer * sbuf) {
             }
             send(msocket, sbuf->data, sbuf->size, 0 );
             msgpack_sbuffer_clear(sbuf);
-            printf("\nfin server get_cell\n");
+            printd("\nfin server get_cell\n");
 
         } else if (! strncmp("recalc", m.method, 6)) {
             // TODO
@@ -501,7 +557,7 @@ void decompress_msg(msgpack_object o, msg * m) {
 
         while (p < pend) {
             if (p->key.type == MSGPACK_OBJECT_STR) {
-                printf("key: %.*s\n", p->key.via.str.size, p->key.via.str.ptr);
+                printd("key: %.*s\n", p->key.via.str.size, p->key.via.str.ptr);
 
                 if (m->id == NULL && ! strncmp(p->key.via.str.ptr, "id", p->key.via.str.size)) {
                     m->id = (int *) malloc(sizeof(int));
@@ -524,6 +580,9 @@ void decompress_msg(msgpack_object o, msg * m) {
                 } else if (m->val == NULL && ! strncmp(p->key.via.str.ptr, "val", p->key.via.str.size)) {
                     m->val = (double *) malloc(sizeof(double));
                     *(m->val) = p->val.via.f64;
+                } else if (m->label == NULL && ! strncmp(p->key.via.str.ptr, "label", p->key.via.str.size)) {
+                    m->label = (char *) malloc(sizeof(char) * (p->val.via.str.size + 1));
+                    sprintf(m->label, "%.*s", p->val.via.str.size, p->val.via.str.ptr);
                 } else if (m->method == NULL && ! strncmp(p->key.via.str.ptr, "method", p->key.via.str.size)) {
                     m->method = (char *) malloc(sizeof(char) * (p->val.via.str.size + 1));
                     sprintf(m->method, "%.*s", p->val.via.str.size, p->val.via.str.ptr);
@@ -533,18 +592,18 @@ void decompress_msg(msgpack_object o, msg * m) {
                 }
 
             } else if (p->key.type == MSGPACK_OBJECT_POSITIVE_INTEGER) {
-                //printf("key: %d\n", (int) p->key.via.u64);
+                //printd("key: %d\n", (int) p->key.via.u64);
             }
 
             if (p->val.type == MSGPACK_OBJECT_STR) {
-                //printf("val: %.*s\n", p->val.via.str.size, p->val.via.str.ptr);
+                //printd("val: %.*s\n", p->val.via.str.size, p->val.via.str.ptr);
             } else if (p->val.type == MSGPACK_OBJECT_POSITIVE_INTEGER) {
-                //printf("val: %d\n", (int) p->val.via.u64);
+                //printd("val: %d\n", (int) p->val.via.u64);
             } else if (p->val.type == MSGPACK_OBJECT_MAP) {
-                //printf("val: ");
+                //printd("val: ");
                 //msgpack_object_print(stdout, p->val);
                 decompress_msg(p->val, m);
-                //printf("\n");
+                //printd("\n");
             }
             p++;
         }
@@ -583,15 +642,15 @@ void free_msg(msg * m) {
 }
 
 void debug_msg(msg * m) {
-    printf("debug:\n");
-    if (m->id != NULL)       printf("m.id: %d\n", *(m->id));
-    if (m->row != NULL)      printf("m.row: %d\n", *(m->row));
-    if (m->col != NULL)      printf("m.col: %d\n", *(m->col));
-    if (m->to_row != NULL)   printf("m.to_row: %d\n", *(m->to_row));
-    if (m->to_col != NULL)   printf("m.to_col: %d\n", *(m->to_col));
-    if (m->method != NULL)   printf("m.method: %s\n", (m->method));
-    if (m->name != NULL)     printf("m.name: %s\n", (m->name));
-    if (m->val != NULL)      printf("m.val: %f\n", *(m->val));
-    if (m->label != NULL)    printf("m.label: %s\n", (m->label));
-    if (m->flag != NULL)     printf("m.flag: %d\n", *(m->flag));
+    printd("debug:\n");
+    if (m->id != NULL)       printd("m.id: %d\n", *(m->id));
+    if (m->row != NULL)      printd("m.row: %d\n", *(m->row));
+    if (m->col != NULL)      printd("m.col: %d\n", *(m->col));
+    if (m->to_row != NULL)   printd("m.to_row: %d\n", *(m->to_row));
+    if (m->to_col != NULL)   printd("m.to_col: %d\n", *(m->to_col));
+    if (m->method != NULL)   printd("m.method: %s\n", (m->method));
+    if (m->name != NULL)     printd("m.name: %s\n", (m->name));
+    if (m->val != NULL)      printd("m.val: %f\n", *(m->val));
+    if (m->label != NULL)    printd("m.label: %s\n", (m->label));
+    if (m->flag != NULL)     printd("m.flag: %d\n", *(m->flag));
 }
