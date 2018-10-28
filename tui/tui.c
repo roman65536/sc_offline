@@ -185,6 +185,8 @@ int main (int argc, char ** argv) {
 
     // start ncurses
     ui_start_screen();
+    offscr_sc_cols = 0;
+    offscr_sc_rows = 0;
 
     // first update
     ui_update(1);
@@ -640,24 +642,20 @@ void ui_show_sc_col_headings(WINDOW * win, int mxcol) {
 
 
 void calc_offscr_sc_rows() {
+    if (offscr_sc_rows && currow >= offscr_sc_rows && currow <= mxrow) return;
+    else if (offscr_sc_rows && currow == offscr_sc_rows - 1) { offscr_sc_rows--; mxrow--; return; }
     offscr_sc_rows = 0;
     mxrow = LINES - RESROW - 2;
-    while (currow > mxrow) {
-        offscr_sc_rows++;
-        mxrow++;
-    }
+    for (; currow > mxrow; offscr_sc_rows++, mxrow++) ;
     return;
 }
 
 void calc_offscr_sc_cols() {
+    if (offscr_sc_cols && curcol >= offscr_sc_cols && curcol <= mxcol) return;
+    else if (offscr_sc_cols && curcol == offscr_sc_cols - 1) { offscr_sc_cols--; mxcol--; return; }
     offscr_sc_cols = 0;
     mxcol = (COLS - RESCOL) / FIXED_COLWIDTH - 1;
-
-    while (curcol > mxcol) {
-        offscr_sc_cols++;
-        mxcol++;
-    }
-    //sc_debug("off:%d, mxcol:%d, curcol:%d", offscr_sc_cols, mxcol, curcol);
+    for (; curcol > mxcol; offscr_sc_cols++, mxcol++) ;
     return;
 }
 
