@@ -90,6 +90,24 @@ struct Sheet * Search_sheet(struct roman *doc, char *name) {
 }
 
 
+int Get_sheets( struct roman *doc, int *len, char **name) {
+
+struct Sheet *sh;
+int cnt=0;
+for(sh=doc->first_sh; sh !=0 ; sh=sh->next) {
+ cnt++;
+ }
+char **name_lst=calloc(cnt,sizeof(char *));
+cnt=0;
+for(sh=doc->first_sh; sh !=0 ; sh=sh->next) {
+ name_lst [cnt]=strdup(sh->name); 
+ cnt++;
+}
+
+*len=cnt;
+*name=name_lst;
+}
+
 void delete_sheet(struct roman *doc, struct Sheet *sh)
 {
     int a;

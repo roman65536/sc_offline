@@ -167,6 +167,7 @@ void * search_func(char * name,int * type);
 extern struct Ent * lookat(struct Sheet * sh, int row, int col);
 extern struct Sheet * new_sheet(struct roman * doc , char * name);
 extern struct Sheet * Search_sheet(struct roman * doc, char * name);
+extern int Get_sheets( struct roman *doc, int *len, char **name);
 extern void recalc();
 extern void export(struct roman * p, FILE *pt ,char * start, char * end, char * start_col, char * end_col, char * start_row, char * end_row);
 

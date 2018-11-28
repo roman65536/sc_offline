@@ -84,7 +84,9 @@ io_loadxl(lua_State *L)
  const char *name = luaL_checkstring(L, 2);
  struct roman *p= ((struct roman *)luaL_checkudata(L, 1, LUA_SC));
  printf("%s %s %s\n",__FUNCTION__,p->name,name);
- open_xlsx(p,name,"");
+ //open_xlsx(p,name,"");
+ read_plugin(p,name,"xlsx");
+
  
  return 0;
 }
@@ -292,6 +294,11 @@ slab_allocator_init();
 ExpressionInit();
 init_lib();
 init_plugin();
+
+
+load_plugin("html");
+load_plugin("xlsx");
+
 
   luaL_newlib(L, iolib);  /* new module */
   createmeta(L);

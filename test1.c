@@ -81,6 +81,10 @@ read_plugin(p,"example/test.xlsx","xlsx");
  */
    //open_xlsx(p, "example/test.xlsx",""); 
 
+char **names;
+int cnt;
+Get_sheets(p,&cnt,&names);
+ 
 for(a=0;a<1000000;a++)
 {
     // calc

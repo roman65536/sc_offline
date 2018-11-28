@@ -561,7 +561,7 @@ xmlChar * xpath = "//a:workbook/a:sheets/*";
 static exl_read(struct roman *p, char *name)
 {
 
- open_xlsx(p, name,"");
+ return open_xlsx(p, name,"");
 }
 
 static char *exc_ending[]= {
