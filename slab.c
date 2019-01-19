@@ -46,7 +46,7 @@ static struct Userland_slab * get_owning_slab(void *obj, size_t pg_sz);
 #define CACHE_USERLAND_SLAB_PAGES_PER_SLAB 1 
 
 //cache used to allocate Userland_slab objects
-static struct Objs_cache cache_Userland_slab;
+struct Objs_cache cache_Userland_slab;
 
 /********************************************************
  *                       Private methods
@@ -385,6 +385,7 @@ void *objs_cache_alloc(struct Objs_cache *cache)
 					  NULL);
 	}
 	else {
+	  printf("%s %x %x\n",__FUNCTION__,cache, &cache_Userland_slab);
 	  cache->free_slabs = create_slab(cache->pages_per_slab,
 					  cache->page_size,
 					  cache->actual_obj_size,

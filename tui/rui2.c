@@ -401,7 +401,7 @@ void ui_update(int header) {
 }
 
 
-void ui_show_content(WINDOW * win, int mxrow, int mxcol) {
+void ui_show_content(struct roman *p, WINDOW * win, int mxrow, int mxcol) {
 
     // Clean from top to bottom
     wmove(win, 0, 0);
@@ -411,94 +411,34 @@ void ui_show_content(WINDOW * win, int mxrow, int mxcol) {
     int ci = offscr_sc_cols;
     int r, c;
 
-    msgpack_unpacker unp;
-    bool result;
-
     for (r=ri; r<=mxrow; r++) {
         for (c=ci; c<=mxcol; c++) {
-            result = msgpack_unpacker_init(&unp, 1024);
-
-            msgpack_pack_map(&pk, 3);
-
-            msgpack_pack_str(&pk, 2);
-            msgpack_pack_str_body(&pk, "id", 2);
-            msgpack_pack_short(&pk, id_session);
-
-            msgpack_pack_str(&pk, 6);
-            msgpack_pack_str_body(&pk, "method", 6);
-            msgpack_pack_str(&pk, 9);
-            msgpack_pack_str_body(&pk, "get_cell", 9);
-
-            msgpack_pack_str(&pk, 6);
-            msgpack_pack_str_body(&pk, "params", 6);
-            msgpack_pack_map(&pk, 2);
-            //msgpack_pack_map(&pk, 4);
-
-            msgpack_pack_str(&pk, 3);
-            msgpack_pack_str_body(&pk, "row", 3);
-            msgpack_pack_int(&pk, r);
-
-            msgpack_pack_str(&pk, 3);
-            msgpack_pack_str_body(&pk, "col", 3);
-            msgpack_pack_int(&pk, c);
-
-            /*
-            msgpack_pack_str(&pk, 6);
-            msgpack_pack_str_body(&pk, "to_row", 6);
-            msgpack_pack_int(&pk, mxrow);
-
-            msgpack_pack_str(&pk, 6);
-            msgpack_pack_str_body(&pk, "to_col", 6);
-            msgpack_pack_int(&pk, mxcol);
-            */
-
-            send(sock, sbuf.data, sbuf.size, 0 );
-            msgpack_sbuffer_clear(&sbuf);
-
-            //if (result) sc_debug("\nok init\n");
-
-            // get cells content
-            valread = read(sock, buffer, 1024);
-            if (valread > 0) {
-                memcpy(msgpack_unpacker_buffer(&unp), buffer, 1024);
-                msgpack_unpacker_buffer_consumed(&unp, 1024); //FIXME
-                msgpack_unpacked und;
-                msgpack_unpack_return ret;
-                msgpack_unpacked_init(&und);
-                ret = msgpack_unpacker_next(&unp, &und);
-                //if (ret == MSGPACK_UNPACK_SUCCESS) sc_debug("ok unpacked\n");
-                msgpack_object q = und.data;
-
-                //msgpack_object_print(stdout, q);
-                msg m;
-                initialize_msg(&m);
-                if (q.type == MSGPACK_OBJECT_MAP) {
-                    unpack_msg(q, &m); // unpack object received (q) to (msg) m
-                    wattroff(win, A_REVERSE);
+	    struct Ent *t;
+	           
+	    t=lookat(p->cur_sh,r,c);
+	            wattroff(win, A_REVERSE);
                     if ((currow == r) && (curcol == c)) wattron(win, A_REVERSE);
 
                     //sc_debug("ri:%d, ci:%d, mxrow:%d, mxcol:%d", ri, ci, mxrow, mxcol);
-                    if (*(m.ret) == 0 && m.val != NULL) {
-                        r = *(m.row);
-                        c = *(m.col);
-                        mvwprintw(win, r - offscr_sc_rows + RESROW - 1, FIXED_COLWIDTH * (c - offscr_sc_cols) + RESCOL, "%f", *(m.val));
-                    } else if (*(m.ret) == 0 && m.label != NULL) {
-                        r = *(m.row);
-                        c = *(m.col);
-                        mvwprintw(win, r - offscr_sc_rows + RESROW - 1, FIXED_COLWIDTH * (c - offscr_sc_cols) + RESCOL, "%s", m.label);
-                    } else if (currow == r && curcol == c) {
+                    if ( (t->flag & VAL)) {
+                      
+                        mvwprintw(win, r - offscr_sc_rows + RESROW - 1, FIXED_COLWIDTH * (c - offscr_sc_cols) + RESCOL, "%f", t->val);
+                    } else if ( t->flag & RP_LABEL) {
+                       
+                        mvwprintw(win, r - offscr_sc_rows + RESROW - 1, FIXED_COLWIDTH * (c - offscr_sc_cols) + RESCOL, "%s", t->label);
+                    }
+		    /*else if (currow == r && curcol == c) {
                         wchar_t w = L' ';
                         int i;
                         for (i = 0; i < FIXED_COLWIDTH; i++)
                             mvwprintw(win, r - offscr_sc_rows + RESROW - 1, FIXED_COLWIDTH * (c - offscr_sc_cols) + i + RESCOL, "%lc", w);
                     }
+		    */
                     wclrtoeol(win);
                 }
-                free_msg(&m);
-                msgpack_unpacked_destroy(&und);
-
+               
             }
-            msgpack_unpacker_destroy(&unp);
+            
             wattroff(win, A_REVERSE);
         }
     }
@@ -523,18 +463,38 @@ int set_val(struct roman *p,int row, int col, float val) {
 
 // TODO return 0 when ok. -1 when not found/error
 int get_val(struct roman *p,int row, int col, float * res) {
-
+   struct Ent *t;
+    t=lookat(p->cur_sh,row,col);
+    if (t->flag & VAL)
+	{
+	    *res=t->val;
+	    return 1;
+	}
+    else return 0;
+    
 }
 
 // TODO should return 0 when 0 return status is received from server
-int set_label(int row, int col, char * label) {
+int set_label(struct roman *p, int row, int col, char * label) {
 
+     struct Ent *t;
+    t=lookat(p->cur_sh,row,col);
+    t->label=strdup(label);
+    t->flag |= RP_LABEL;
+
+    
 }
 
 // TODO return 0 when ok. -1 when not found/error
-int get_label(int row, int col, char * label) {
-    int found=0;
-
+int get_label(struct roman *p , int row, int col, char * label) {
+     struct Ent *t;
+    t=lookat(p->cur_sh,row,col);
+    if (t->flag & RP_LABEL)
+	{
+	    label=t->label;
+	    return 1;
+	}
+    else return 0;
 }
 
 

@@ -26,7 +26,7 @@ int load_plugin(char *name)
  char f_name[255];
 	sprintf(f_name,"./%s.so",name);
 
-	handle = dlopen(f_name, RTLD_LAZY|RTLD_GLOBAL|RTLD_DEEPBIND );
+	handle = dlopen(f_name, RTLD_GLOBAL| RTLD_LAZY );
            if (!handle) {
 		printf("Failed load %s \n",name);
 		return -1;

@@ -17,8 +17,11 @@
 
 #include "function.h"
 
+#include "slab.h"
+#include "queue.h"
 
 
+extern struct Objs_cache cache_Userland_slab;
 
 
 io_open(lua_State *L)
@@ -34,6 +37,7 @@ io_open(lua_State *L)
  p->cache_nr=0;
  
  printf("%s %s %d\n",__FUNCTION__,p->name,p->open);
+printf( "%x \n ",&cache_Userland_slab);
  return 1;
 }
 
@@ -290,8 +294,11 @@ static void createmeta (lua_State *L) {
 
 LUAMOD_API int luaopen_sc (lua_State *L) {
 
+fprintf(stderr,"%x \n ",&cache_Userland_slab);
 slab_allocator_init();
+fprintf(stderr, "%x \n ",&cache_Userland_slab);
 ExpressionInit();
+fprintf(stderr, "%x \n ",&cache_Userland_slab);
 init_lib();
 init_plugin();
 
