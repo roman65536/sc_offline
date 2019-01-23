@@ -1,15 +1,17 @@
 /* INCLUDES */
 #include <signal.h> /* for signal */
+//#include <wchar.h>
+#include <curses.h>
 #include <wchar.h>
-#include <ncurses.h>
 #include <stdlib.h> /* for malloc */
-#include <msgpack.h>
+//#include <msgpack.h>
 //#include <stdio.h>
 //#include <string.h>
 //#include <netinet/in.h>
 //#include <fcntl.h>
 #include <unistd.h>   /* for read */
-/* #include <wctype.h> */
+#include <wctype.h> 
+#include <rpsc.h>
 
 
 /* DEFINES */
@@ -17,8 +19,8 @@
 #define BUFFERSIZE      1024
 #define sc_debug(x, ...)     ui_sc_msg(x, DEBUG_MSG, ##__VA_ARGS__)
 #define DEBUG_MSG         19
-#define RESROW             2     // rows reserved for prompt, error
-#define RESCOL             4     // default terminal columns reserved for row numbers
+#define LRESROW             2     // rows reserved for prompt, error
+#define LRESCOL             4     // default terminal columns reserved for row numbers
 #define PORT 1234
 #define FIXED_COLWIDTH    12
 
@@ -55,8 +57,8 @@ struct block * create_buf();
 void addto_buf(struct block * buf, wint_t d);
 void flush_buf (struct block * buf);
 void erase_buf (struct block * buf);
-void handle_input(struct block * buffer);
-void do_normalmode(struct block * buf);
+void handle_input(struct roman* ,struct block * buffer);
+void do_normalmode(struct roman *, struct block * buf);
 void ui_sc_msg(char * s, int type, ...);
 void ui_show_header();
 void ui_clr_header(int i);
@@ -64,20 +66,20 @@ void ui_show_sc_row_headings(WINDOW * win, int mxrow);
 void calc_offscr_sc_rows();
 void calc_offscr_sc_cols();
 void ui_show_sc_col_headings(WINDOW * win, int mxcol);
-void ui_update(int header);
-char * coltoa(int col);
-void ui_show_content(WINDOW * win, int mxrow, int mxcol);
+void ui_update(struct roman *, int header);
+char * lcoltoa(int col);
+void ui_show_content(struct roman *p,WINDOW * win, int mxrow, int mxcol);
 
 void send_helo();
-void create_sheet();
+struct Sheet *  create_sheet(struct roman *p, char * name);
 void remove_sheet();
-int get_val(int row, int col, float * res);
-int set_val(int row, int col, float val);
-int set_label(int row, int col, char * val);
-int get_label(int row, int col, char * val);
+int get_val(struct roman *, int row, int col, float * res);
+int set_val(struct roman *,int row, int col, float val);
+int set_label(struct roman *,int row, int col, char * val);
+int get_label(struct roman *, int row, int col, char * val);
 int bye();
 int connect_to_server();
-void unpack_msg(msgpack_object o, msg * m);
+//void unpack_msg(msgpack_object o, msg * m);
 void free_msg(msg * m);
 void initialize_msg(msg * m);
 void high_cursor(WINDOW * win);
@@ -96,15 +98,15 @@ static int d;              // char read from stdin
 
 int currow = 0; /* Current row of the selected cell */
 int curcol = 0; /* Current column of the selected cell */
-int rescol = RESCOL; /* terminal columns reserved for displaying row numbers */
+int lrescol = LRESCOL; /* terminal columns reserved for displaying row numbers */
 int shall_quit = 0;
 int offscr_sc_rows = 0, offscr_sc_cols = 0; /* off screen spreadsheet rows and columns */
 int mxcol = 0;
 int mxrow = 0;
 
-msgpack_sbuffer sbuf; /* buffer */
-msgpack_packer pk;    /* packer */
-msgpack_zone mempool;
+//msgpack_sbuffer sbuf; /* buffer */
+//msgpack_packer pk;    /* packer */
+//msgpack_zone mempool;
 int id_session, sock;
 int valread;
 char buffer[1024] = {0};
@@ -149,13 +151,13 @@ load_plugin("xlsx");
     offscr_sc_rows = 0;
 
     // first update
-    ui_update(1);
+    ui_update(p,1);
 
     // handle input from keyboard
     wchar_t stdin_buffer [BUFFERSIZE] = { L'\0' };
     sbuffer = (struct block *) create_buf(); // this should only take place if curses ui
     while ( ! shall_quit) {
-        handle_input(sbuffer);
+        handle_input(p, sbuffer);
     }
     erase_buf(sbuffer);
 
@@ -169,8 +171,8 @@ load_plugin("xlsx");
     bye();
 
     // free structures
-    msgpack_zone_destroy(&mempool);
-    msgpack_sbuffer_destroy(&sbuf);
+    //    msgpack_zone_destroy(&mempool);
+    //msgpack_sbuffer_destroy(&sbuf);
 
     return 0;
 }
@@ -207,7 +209,7 @@ void sig_int() {
 void ui_show_header() {
     ui_clr_header(0);
     ui_clr_header(1);
-    mvwprintw(input_win, 0, rescol, " (%d, %d)", currow, curcol);
+    mvwprintw(input_win, 0, lrescol, " (%d, %d)", currow, curcol);
     wrefresh(input_win);
     return;
 }
@@ -228,7 +230,7 @@ void ui_clr_header(int i) {
 }
 
 
-void handle_input(struct block * buffer) {
+void handle_input(struct roman *p, struct block * buffer) {
     return_value = ui_getch(&wd);
     d = wd;
 
@@ -236,12 +238,12 @@ void handle_input(struct block * buffer) {
        addto_buf(buffer, wd);
     }
 
-    do_normalmode(buffer);
+    do_normalmode(p, buffer);
     flush_buf(buffer);        // Flush the buffer
 }
 
 
-void do_normalmode(struct block * buf) {
+void do_normalmode(struct roman *p, struct block * buf) {
     switch (buf->value) {
         case L'l':
             {
@@ -249,7 +251,7 @@ void do_normalmode(struct block * buf) {
             curcol++;
             int i = offscr_sc_cols;
             calc_offscr_sc_cols();
-            if (i != offscr_sc_cols) ui_show_content(main_win, mxrow, mxcol);
+            if (i != offscr_sc_cols) ui_show_content(p, main_win, mxrow, mxcol);
             high_cursor(main_win);
 
             // highlight new currow and curcol
@@ -267,7 +269,7 @@ void do_normalmode(struct block * buf) {
             if (curcol) curcol--;
             int i = offscr_sc_cols;
             calc_offscr_sc_cols();
-            if (i != offscr_sc_cols) ui_show_content(main_win, mxrow, mxcol);
+            if (i != offscr_sc_cols) ui_show_content(p, main_win, mxrow, mxcol);
             high_cursor(main_win);
 
             // highlight new currow and curcol
@@ -285,7 +287,7 @@ void do_normalmode(struct block * buf) {
             if (currow) currow--;
             int before = offscr_sc_rows;
             calc_offscr_sc_rows();
-            if (before != offscr_sc_rows) ui_show_content(main_win, mxrow, mxcol);
+            if (before != offscr_sc_rows) ui_show_content(p, main_win, mxrow, mxcol);
             high_cursor(main_win);
 
             // highlight new currow and curcol
@@ -303,7 +305,7 @@ void do_normalmode(struct block * buf) {
             currow++;
             int before = offscr_sc_rows;
             calc_offscr_sc_rows();
-            if (before != offscr_sc_rows) ui_show_content(main_win, mxrow, mxcol);
+            if (before != offscr_sc_rows) ui_show_content(p, main_win, mxrow, mxcol);
             high_cursor(main_win);
 
             // highlight new currow and curcol
@@ -316,7 +318,7 @@ void do_normalmode(struct block * buf) {
             break;
 
         case L'u':
-            ui_update(1);
+            ui_update(p,1);
             break;
 
         case L'a':
@@ -367,7 +369,7 @@ int ui_getch(wint_t * wd) {
 
 
 
-void ui_update(int header) {
+void ui_update(struct roman *p, int header) {
     /*
      * Calculate offscreen rows and columns
      *
@@ -387,7 +389,7 @@ void ui_update(int header) {
     calc_offscr_sc_cols();
     calc_offscr_sc_rows();
 
-    ui_show_content(main_win, mxrow, mxcol);
+    ui_show_content(p,main_win, mxrow, mxcol);
 
     // Show sc_col headings: A, B, C, D..
     ui_show_sc_col_headings(main_win, mxcol);
@@ -410,22 +412,27 @@ void ui_show_content(struct roman *p, WINDOW * win, int mxrow, int mxcol) {
     int ri = offscr_sc_rows;
     int ci = offscr_sc_cols;
     int r, c;
+    struct Ent **pp;
+   
 
     for (r=ri; r<=mxrow; r++) {
         for (c=ci; c<=mxcol; c++) {
 	    struct Ent *t;
-	           
-	    t=lookat(p->cur_sh,r,c);
+	    pp=ATBL(p->cur_sh,NULL,r,c);
+	    if (pp == 0) continue;
+	    t=*pp;
+	    if (t == 0) continue;
+	    //t=lookat(p->cur_sh,r,c);
 	            wattroff(win, A_REVERSE);
                     if ((currow == r) && (curcol == c)) wattron(win, A_REVERSE);
 
                     //sc_debug("ri:%d, ci:%d, mxrow:%d, mxcol:%d", ri, ci, mxrow, mxcol);
                     if ( (t->flag & VAL)) {
                       
-                        mvwprintw(win, r - offscr_sc_rows + RESROW - 1, FIXED_COLWIDTH * (c - offscr_sc_cols) + RESCOL, "%f", t->val);
+                        mvwprintw(win, r - offscr_sc_rows + LRESROW - 1, FIXED_COLWIDTH * (c - offscr_sc_cols) + LRESCOL, "%f", t->val);
                     } else if ( t->flag & RP_LABEL) {
                        
-                        mvwprintw(win, r - offscr_sc_rows + RESROW - 1, FIXED_COLWIDTH * (c - offscr_sc_cols) + RESCOL, "%s", t->label);
+                        mvwprintw(win, r - offscr_sc_rows + LRESROW - 1, FIXED_COLWIDTH * (c - offscr_sc_cols) + LRESCOL, "%s", t->label);
                     }
 		    /*else if (currow == r && curcol == c) {
                         wchar_t w = L' ';
@@ -440,8 +447,7 @@ void ui_show_content(struct roman *p, WINDOW * win, int mxrow, int mxcol) {
             }
             
             wattroff(win, A_REVERSE);
-        }
-    }
+      
     wrefresh(win);
     return;
 }
@@ -553,9 +559,9 @@ void clean_cursor(WINDOW * win) {
     int i, j;
     for (i = 0; i < FIXED_COLWIDTH; ) {
         w = L' ';
-        j = mvwin_wchnstr (win, currow - offscr_sc_rows + RESROW - 1, (FIXED_COLWIDTH * (curcol - offscr_sc_cols)) + RESCOL + i, cht, 1);
+        j = mvwin_wchnstr (win, currow - offscr_sc_rows + LRESROW - 1, (FIXED_COLWIDTH * (curcol - offscr_sc_cols)) + LRESCOL + i, cht, 1);
         if (j == OK && cht[0].chars[0] != L'\0') w = cht[0].chars[0];
-        mvwprintw(win, currow - offscr_sc_rows + RESROW - 1, (FIXED_COLWIDTH * (curcol - offscr_sc_cols)) + RESCOL + i, "%lc", w);
+        mvwprintw(win, currow - offscr_sc_rows + LRESROW - 1, (FIXED_COLWIDTH * (curcol - offscr_sc_cols)) + LRESCOL + i, "%lc", w);
         i+= wcwidth(w);
     }
     return;
@@ -572,9 +578,9 @@ void high_cursor(WINDOW * win) {
 
     for (i = 0; i < FIXED_COLWIDTH; ) {
         w = L' ';
-        j = mvwin_wchnstr (win, currow - offscr_sc_rows + RESROW - 1, FIXED_COLWIDTH * (curcol - offscr_sc_cols) + RESCOL + i, cht, 1);
+        j = mvwin_wchnstr (win, currow - offscr_sc_rows + LRESROW - 1, FIXED_COLWIDTH * (curcol - offscr_sc_cols) + LRESCOL + i, cht, 1);
         if (j == OK && cht[0].chars[0] != L'\0') w = cht[0].chars[0];
-        mvwprintw(win, currow - offscr_sc_rows + RESROW - 1, (FIXED_COLWIDTH * (curcol - offscr_sc_cols)) + RESCOL + i, "%lc", w);
+        mvwprintw(win, currow - offscr_sc_rows + LRESROW - 1, (FIXED_COLWIDTH * (curcol - offscr_sc_cols)) + LRESCOL + i, "%lc", w);
         i+=wcwidth(w);
     }
     wattroff(win, A_REVERSE);
@@ -586,7 +592,7 @@ void ui_show_sc_row_headings(WINDOW * win, int mxrow) {
     int i, row = 0;
     for (i = offscr_sc_rows; i <= mxrow; i++, row++) {
         if (i == currow) wattron(win, A_REVERSE);
-        mvwprintw (win, row+1, 0, "%*d ", rescol-1, i);
+        mvwprintw (win, row+1, 0, "%*d ", lrescol-1, i);
         wattroff(win, A_REVERSE);
     }
     wrefresh(win);
@@ -595,7 +601,7 @@ void ui_show_sc_row_headings(WINDOW * win, int mxrow) {
 
 
 void ui_show_sc_col_headings(WINDOW * win, int mxcol) {
-    int i, col = rescol;
+    int i, col = lrescol;
     wmove(win, 0, 0);
     wclrtoeol(win);
 
@@ -603,7 +609,7 @@ void ui_show_sc_col_headings(WINDOW * win, int mxcol) {
     for (i = offscr_sc_cols; i <= mxcol; i++) {
         int k = FIXED_COLWIDTH / 2;
         if (i == curcol) wattron(win, A_REVERSE);
-        mvwprintw(win, 0, col, "%*s%-*s", k-1, " ", FIXED_COLWIDTH - k + 1, coltoa(i));
+        mvwprintw(win, 0, col, "%*s%-*s", k-1, " ", FIXED_COLWIDTH - k + 1, lcoltoa(i));
 
         col += FIXED_COLWIDTH;
         if (i == mxcol && COLS - col > 0) wclrtoeol(win);
@@ -618,7 +624,8 @@ void calc_offscr_sc_rows() {
     if (offscr_sc_rows && currow >= offscr_sc_rows && currow <= mxrow) return;
     else if (offscr_sc_rows && currow == offscr_sc_rows - 1) { offscr_sc_rows--; mxrow--; return; }
     offscr_sc_rows = 0;
-    mxrow = LINES - RESROW - 2;
+    mxrow = LINES - LRESROW - 2;
+    mxrow = 25;
     for (; currow > mxrow; offscr_sc_rows++, mxrow++) ;
     return;
 }
@@ -627,13 +634,13 @@ void calc_offscr_sc_cols() {
     if (offscr_sc_cols && curcol >= offscr_sc_cols && curcol <= mxcol) return;
     else if (offscr_sc_cols && curcol == offscr_sc_cols - 1) { offscr_sc_cols--; mxcol--; return; }
     offscr_sc_cols = 0;
-    mxcol = (COLS - RESCOL) / FIXED_COLWIDTH - 1;
+    mxcol = (COLS - LRESCOL) / FIXED_COLWIDTH - 1;
     for (; curcol > mxcol; offscr_sc_cols++, mxcol++) ;
     return;
 }
 
 
-char * coltoa(int col) {
+char * lcoltoa(int col) {
     static char rname[3];
     register char *p = rname;
 
@@ -646,3 +653,74 @@ char * coltoa(int col) {
     return (rname);
 }
 
+
+
+
+
+/* Create buffer as list of blocks */
+struct block * create_buf() {
+    struct block * b = (struct block *) malloc(sizeof(struct block));
+    b->value = '\0';
+    b->pnext = NULL;
+    return b;
+}
+
+
+/* Add a wint_t to a buffer */
+void addto_buf(struct block * buf, wint_t d) {
+    struct block * aux = buf;
+
+    if (buf->value == '\0') {
+        buf->value = d;
+    } else {
+        struct block * b = (struct block *) malloc(sizeof(struct block));
+        b->value = d;
+        b->pnext = NULL;
+
+        while (aux->pnext != NULL)
+            aux = aux->pnext;
+        aux->pnext = b;
+    }
+    return;
+}
+
+
+void flush_buf (struct block * buf) {
+    if (buf == NULL) return;
+
+    struct block * aux, * np;
+    for (aux = buf->pnext; aux != NULL; aux = np)
+    {
+        np = aux->pnext;
+        free(aux);
+    }
+    buf->value = '\0';
+    buf->pnext = NULL;
+
+    return;
+}
+
+
+/* Delete all blocks of a buffer including the initial node */
+void erase_buf (struct block * buf) {
+    flush_buf(buf);
+    free(buf);
+    return;
+}
+
+
+/* Delete the first element in a buffer */
+struct block * dequeue (struct block * buf) {
+    if (buf == NULL) return buf;
+    struct block * sig;
+    if (buf->value == '\0') return buf;
+
+    if (buf->pnext == NULL) {
+       buf->value = '\0';
+    } else {
+        sig = buf->pnext;
+        //free(buf);
+        buf = sig;
+    }
+    return buf;
+}

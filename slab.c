@@ -385,7 +385,7 @@ void *objs_cache_alloc(struct Objs_cache *cache)
 					  NULL);
 	}
 	else {
-	  printf("%s %x %x\n",__FUNCTION__,cache, &cache_Userland_slab);
+	  //printf("%s %x %x\n",__FUNCTION__,cache, &cache_Userland_slab);
 	  cache->free_slabs = create_slab(cache->pages_per_slab,
 					  cache->page_size,
 					  cache->actual_obj_size,
