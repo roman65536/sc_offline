@@ -18,6 +18,11 @@
 #define MAX(a,b) (((a)>(b))?(a):(b))
 
 
+
+static struct plugin *pl;
+
+#define new_sheet_pl(...) (*pl->new_sheet)( __VA_ARGS__)
+
 /*
  * xlsx import requires:
  * requires libzip-dev
@@ -464,7 +469,7 @@ xmlChar * xpath = "//a:workbook/a:sheets/*";
             xmlNodePtr cur;
             cur=result->nodesetval->nodeTab[a];
             struct Sheet * this_sh;
-            this_sh=new_sheet(p,xmlGetProp(cur,"name"));
+            this_sh=new_sheet_pl(p,xmlGetProp(cur,"name"));
 #ifndef NEW
             growtbl(this_sh,GROWNEW, 0, 0);
 #endif
@@ -580,7 +585,7 @@ ptr->type=PLUG_IN;
 ptr->read=exl_read;
 ptr->name=exl_name;
 
-
+pl=ptr;
 
 }
 

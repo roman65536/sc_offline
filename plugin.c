@@ -34,6 +34,10 @@ int load_plugin(char *name)
  	new=(struct plugin *) calloc(1,sizeof(struct plugin));
 	new->next=plug_ins;
 	plug_ins=new;
+
+	new->new_sheet=&new_sheet;
+	new->lookat=&lookat;
+
 	sprintf(f_name,"init_%s",name);
 	init_p=dlsym(handle,f_name);
 	init_p(new); //plugin fills out the plugin struct

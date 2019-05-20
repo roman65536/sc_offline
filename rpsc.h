@@ -73,6 +73,11 @@ struct plugin
  int (*read)(struct roman *, char *);  //  
  int (*write)(struct roman *, char *);  // 
 
+ struct Ent* (*lookat)(struct Sheet * , int , int ); 
+ struct Sheet* (*new_sheet) (struct roman * , char * );
+
+ 
+
 };
 
 
