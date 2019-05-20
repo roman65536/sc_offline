@@ -264,7 +264,7 @@ html_write(struct roman *p, char *name)
  fprintf(fd,"<html>\n");
  for(p->cur_sh=p->first_sh;p->cur_sh  !=0  ; p->cur_sh=p->cur_sh->next)
  {
- fprintf(fd,"<h3>%s</h3\n",p->cur_sh->name);
+ fprintf(fd,"<h3>%s</h3>\n",p->cur_sh->name);
   export(p, fd, "<table>","</table>\n","<tr>","</tr>\n","<td>","</td>");
 
  } 
