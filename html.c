@@ -12,6 +12,7 @@
 static struct plugin *pl;
 
 #define new_sheet_pl(...) (*pl->new_sheet)( __VA_ARGS__)
+#define lookat_pl(...) (*pl->lookat)( __VA_ARGS__)
 
 char * get_cell_content(xmlNode *cur, char  **str)
 {
@@ -60,7 +61,7 @@ void html_read_row(struct roman *p , xmlNode *cur, int row)
 	 get_cell_content(ptr,&str);
 	 //printf("String len %d [%s]\n",len,str); 
  	 printf("CELL %d;%d [%s]\n",row,col,str);
-	 ent=lookat(p->cur_sh,row,col);
+	 ent=lookat_pl(p->cur_sh,row,col);
 	 p->cur_sh->maxcol=MAX(p->cur_sh->maxcol,col);
          p->cur_sh->maxrow=MAX(p->cur_sh->maxrow,row);
 	 ent->val=strtod(str,&next);

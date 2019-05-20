@@ -22,6 +22,10 @@
 static struct plugin *pl;
 
 #define new_sheet_pl(...) (*pl->new_sheet)( __VA_ARGS__)
+#define lookat_pl(...) (*pl->lookat)( __VA_ARGS__)
+#define search_sheet_pl(...) (*pl->search_sheet)( __VA_ARGS__)
+#define getAST_pl(...) (*pl->getAST)( __VA_ARGS__)
+#define deleteExpression_pl(...) (*pl->deleteExpression)( __VA_ARGS__)
 
 /*
  * xlsx import requires:
@@ -213,7 +217,7 @@ void get_sheet_data(struct roman *p, xmlDocPtr doc, xmlDocPtr doc_strings, xmlDo
 		  //clean_carrier(st); // we handle padding
                     snprintf(line_interp, FBUFLEN, "label %s%d=\"%s\"", col, r, strvalue);
                     //printf(line_interp);
-		     ent=lookat(p->cur_sh,r,c);
+		     ent=lookat_pl(p->cur_sh,r,c);
 		     p->cur_sh->maxcol=MAX(p->cur_sh->maxcol,c);
 		     p->cur_sh->maxrow=MAX(p->cur_sh->maxrow,r);
 		     ent->label=strdup(strvalue);
@@ -230,7 +234,7 @@ void get_sheet_data(struct roman *p, xmlDocPtr doc, xmlDocPtr doc_strings, xmlDo
 		  //clean_carrier(st); // we handle padding
                     snprintf(line_interp, FBUFLEN, "label %s%d=\"%s\"", col, r, st);
                     //printf(line_interp);
-		     ent=lookat(p->cur_sh,r,c);
+		     ent=lookat_pl(p->cur_sh,r,c);
 		     p->cur_sh->maxcol=MAX(p->cur_sh->maxcol,c);
 		     p->cur_sh->maxrow=MAX(p->cur_sh->maxrow,r);
 		     ent->label=strdup(strvalue);
@@ -257,7 +261,7 @@ void get_sheet_data(struct roman *p, xmlDocPtr doc, xmlDocPtr doc_strings, xmlDo
 
                     snprintf(line_interp, FBUFLEN, "let1 %s%d=%.15ld %ld", col, r, (l - 25569) * 86400 - atoi("1"),l);
                     //printf(line_interp);
-		    ent=lookat(p->cur_sh,r,c);
+		    ent=lookat_pl(p->cur_sh,r,c);
 		     p->cur_sh->maxcol=MAX(p->cur_sh->maxcol,c);
 		     p->cur_sh->maxrow=MAX(p->cur_sh->maxrow,r);
 		    ent->val=(l-25569)*86400-1;
@@ -293,7 +297,7 @@ void get_sheet_data(struct roman *p, xmlDocPtr doc, xmlDocPtr doc_strings, xmlDo
                     snprintf(line_interp, FBUFLEN, "let3 %s%d=%.15f", col, r, l);
                     //printf(line_interp);
 
-		    ent=lookat(p->cur_sh,r,c);
+		    ent=lookat_pl(p->cur_sh,r,c);
 		     p->cur_sh->maxcol=MAX(p->cur_sh->maxcol,c);
 		     p->cur_sh->maxrow=MAX(p->cur_sh->maxrow,r);
 		    ent->val=l;
@@ -338,16 +342,16 @@ void get_sheet_data(struct roman *p, xmlDocPtr doc, xmlDocPtr doc_strings, xmlDo
 
                         // we send the formula to the interpreter and hope to resolve it!
                         snprintf(line_interp, FBUFLEN, "let4 %s%d=%s", col, r, formula);
-			 ent=lookat(p->cur_sh,r,c);
+			 ent=lookat_pl(p->cur_sh,r,c);
 		     p->cur_sh->maxcol=MAX(p->cur_sh->maxcol,c);
 		     p->cur_sh->maxrow=MAX(p->cur_sh->maxrow,r);
 			 ent->formula=strdup(formula);
 			 char *ptr=ent->formula;
-			 ent->exp=getAST(ptr,p);
+			 ent->exp=getAST_pl(ptr,p);
 			 
 			 if((ent->exp != 0) && (ent->exp->type == eVALUE)) {
 			   ent->val=ent->exp->value;
-			   deleteExpression(ent->exp);
+			   deleteExpression_pl(ent->exp);
 			   ent->exp=0;
 			 }
 			 ent->flag |= VAL | RP_FORMULA;
@@ -491,7 +495,7 @@ xmlChar * xpath = "//a:workbook/a:sheets/*";
 
 
 	struct Sheet *this_sh;
-	this_sh=Search_sheet(p,xmlGetProp(cur,"name"));
+	this_sh=search_sheet_pl(p,xmlGetProp(cur,"name"));
 	//growtbl(this_sh,GROWNEW, 0, 0);
 	p->cur_sh=this_sh;
    

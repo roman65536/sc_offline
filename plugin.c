@@ -37,6 +37,9 @@ int load_plugin(char *name)
 
 	new->new_sheet=&new_sheet;
 	new->lookat=&lookat;
+	new->search_sheet=&Search_sheet;
+	new->getAST=&getAST;
+	new->deleteExpression=&deleteExpression;
 
 	sprintf(f_name,"init_%s",name);
 	init_p=dlsym(handle,f_name);

@@ -75,6 +75,9 @@ struct plugin
 
  struct Ent* (*lookat)(struct Sheet * , int , int ); 
  struct Sheet* (*new_sheet) (struct roman * , char * );
+ struct Sheet * (*search_sheet)(struct roman *doc, char *name);
+ SExpression *  (*getAST)(const char * expr, struct roman * p) ;
+ void  (*deleteExpression)(SExpression *b);
 
  
 
