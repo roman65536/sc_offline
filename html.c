@@ -9,7 +9,9 @@
 
 #define MAX(a,b) (((a)>(b))?(a):(b))
 
+static struct plugin *pl;
 
+#define new_sheet_pl(...) (*pl->new_sheet)( __VA_ARGS__)
 
 char * get_cell_content(xmlNode *cur, char  **str)
 {
@@ -158,12 +160,12 @@ void traverse_dom_trees(struct roman *p, xmlNode * a_node)
 					flag=1;
 					}
 			}
-			if(flag == 1) p->cur_sh=new_sheet(p,tbl_name);
+			if(flag == 1) p->cur_sh=new_sheet_pl(p,tbl_name);
 			else {
 				char tbl_name1[32];
 				sprintf(tbl_name1,"html_table%d",tbl_nr++); 
 				printf(" tbl name [%s] will used", tbl_name1);
-				p->cur_sh=new_sheet(p,tbl_name1);
+				p->cur_sh=new_sheet_pl(p,tbl_name1);
 			}
 			html_read_table(p , cur_node);
 	        }
@@ -277,6 +279,7 @@ static char *html_ending[]= {
 
 static char *html_name = "html";
 
+
 int init_html(struct plugin *ptr)
 {
 ptr->ending=html_ending;
@@ -284,7 +287,10 @@ ptr->type=PLUG_IN;
 ptr->read=html_read;
 ptr->write=html_write;
 ptr->name=html_name;
-
- 
-
+pl=ptr;
 }
+
+
+
+
+
