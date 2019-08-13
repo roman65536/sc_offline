@@ -64,6 +64,8 @@ struct Ent ** atbl(struct Sheet *sh, struct Ent ***tbl, int row, int col) {
 
 struct Sheet * new_sheet(struct roman * doc, char * name) {
     struct Sheet * sh;
+    if((sh=Search_sheet(doc,name)) != 0 ) return sh;
+
     sh = (struct Sheet *) calloc(1, sizeof(struct Sheet));
     INSERT(sh, (doc->first_sh), (doc->last_sh), next, prev);
     sh->name = strdup(name);

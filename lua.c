@@ -96,6 +96,20 @@ io_loadxl(lua_State *L)
 }
 
 
+io_loadhtml(lua_State *L)
+{
+ struct Sheet *sh;
+ const char *name = luaL_checkstring(L, 2);
+ struct roman *p= ((struct roman *)luaL_checkudata(L, 1, LUA_SC));
+ printf("%s %s %s\n",__FUNCTION__,p->name,name);
+ //open_xlsx(p,name,"");
+ read_plugin(p,name,"html");
+
+
+ return 0;
+}
+
+
 io_loadxls(lua_State *L)
 {
  struct Sheet *sh;
@@ -266,6 +280,7 @@ static const luaL_Reg flib[] = {
   {"newsheet", io_newsheet},
   {"loadxlsx", io_loadxl},
   {"loadxls", io_loadxls},
+  {"loadhtml", io_loadhtml},
   {"getsheets",io_getsheets},
   {"recalc",io_recalc},
   {"lgetnum",l_getnum},
