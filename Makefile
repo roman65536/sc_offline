@@ -15,12 +15,12 @@ sc_lib: $(SC_LIB_O)
 	ar -cvr libsc_s.a  $(SC_LIB_O)
 
 test1:  sc_lib test1.o rpsc.h html.so xlsx.so
-	$(CC) $(CFLAGS) test1.o -L./ -lsc_s -lm `pkg-config --libs libxml-2.0 libzip lua5.2` -o test1
+	$(CC) $(CFLAGS) test1.o -L./ -lsc_s -lm `pkg-config --libs libxml-2.0 libzip lua5.3` -o test1
 
 
-lua:	$(SC_LIB_O) lua.o
+lua:	sc_lib  lua.o
 #	$(CC) $(CFLAGS) lua.o -o sc.so -shared -L./ -lsc -lm `pkg-config --libs libxml-2.0  libzip lua5.2` -L$(HOME)/Downloads/libxls-master/.libs -lxlsreader
-	$(CC) $(CFLAGS) -Wl,--whole-archive  -Wl,--no-whole-archive lua.o -Wl,-soname,sc.so -o sc.so -fvisibility=default -shared -rdynamic -export-dynamic -L./ -lsc_s  -lm `pkg-config --libs libxml-2.0 libcurl libzip lua5.2` -L$(HOME)/Downloads/libxls-master/.libs  -ldl
+	$(CC) $(CFLAGS) -Wl,--whole-archive  -Wl,--no-whole-archive lua.o -Wl,-soname,sc.so -o sc.so -fvisibility=default -shared -rdynamic -export-dynamic -L./ -lsc_s  -lm `pkg-config --libs libxml-2.0 libcurl libzip lua5.3` -L$(HOME)/Downloads/libxls-master/.libs  -ldl
 #	$(CC) $(CFLAGS) lua.o $(SC_LIB_O) -Wl,-soname,sc.so  -o sc.so -fvisibility=default -shared -rdynamic -export-dynamic -L./   -lm `pkg-config --libs libxml-2.0  libzip lua5.2` -L$(HOME)/Downloads/libxls-master/.libs  -ldl
 
 server: sc_lib server.o rpsc.h
@@ -50,8 +50,13 @@ xlsx.so:		xlsx.c
 	gcc -pg -g -fPIC -c xlsx.c -D XLSX -o xlsx.o `pkg-config --cflags libxml-2.0 libzip` -export-dynamic -fvisibility=default
 	gcc -pg -g -fPIC -shared -rdynamic -export-dynamic  -o xlsx.so xlsx.o `pkg-config --libs libxml-2.0 libzip ` -L./   -ldl
 
+csv.so:		csv.c libcsv.c
+	gcc -pg -g -fPIC -c csv.c -o csv.o -I. -export-dynamic -fvisibility=default
+	gcc -pg -g -fPIC -c libcsv.c -o libcsv.o -I. -export-dynamic -fvisibility=default
+	gcc -pg -g -fPIC -shared -rdynamic -export-dynamic  -o csv.so csv.o libcsv.o  -L./   -ldl
+
 %.o:            %.c rpsc.h
-	$(CC) $(CFLAGS) -fPIC -c $< -o $@ `pkg-config --cflags lua5.2` -export-dynamic
+	$(CC) $(CFLAGS) -fPIC -c $< -o $@ `pkg-config --cflags lua5.3` -export-dynamic
 
 tui.o:           tui/tui.c
 	$(CC) $(CFLAGS) -c $< -o $@

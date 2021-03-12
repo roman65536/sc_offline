@@ -129,9 +129,9 @@ SExpression *createOperation(EOperationType type, SExpression *left, SExpression
     b->type = type;
     b->left = left;
     b->right = right;
-    b->next=left;
-    if(right != 0)
-    left->next=right;
+    //b->next=left;
+    //if(right != 0)
+    //left->next=right;
 
     return b;
 }

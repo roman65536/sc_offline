@@ -15,7 +15,7 @@ SExpression * getAST(const char * expr, struct roman * p) {
         return NULL;
     }
 
-    //printf("PARSING: [%s]\n",expr);
+//    printf("PARSING: [%s]\n",expr);
     state = yy_scan_string(expr, scanner);
 
     if (yyparse(&expression, scanner,p)) {

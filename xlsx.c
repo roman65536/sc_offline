@@ -347,6 +347,7 @@ void get_sheet_data(struct roman *p, xmlDocPtr doc, xmlDocPtr doc_strings, xmlDo
 		     p->cur_sh->maxrow=MAX(p->cur_sh->maxrow,r);
 			 ent->formula=strdup(formula);
 			 char *ptr=ent->formula;
+			 printf("%s:%d: %s\n",__FUNCTION__,__LINE__,ptr);
 			 ent->exp=getAST_pl(ptr,p);
 			 
 			 if((ent->exp != 0) && (ent->exp->type == eVALUE)) {

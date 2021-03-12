@@ -93,9 +93,9 @@ expr
     | TOKEN_TBL                                                 { $$ = createEnt($1); }
     | TOKEN_VAR                                                 { $$ = createVar($1); }
     | TOKEN_FUNCR TOKEN_LPAREN TOKEN_TEXT TOKEN_RPAREN          { int argn; char ** argv;
-      //printf("Function %p %s %p\n",$1,$3,&argv[0]);
                                                                   makeArgs($3, &argn, &argv);
                                                                   $$ = createFunction('f', $1, argn, argv);
+    //  printf("Function %p %s %p ret: %p\n",$1,$3,&argv[0],$$);
                                                                 }
     | TOKEN_FUNCM1 TOKEN_LPAREN expr TOKEN_RPAREN               { $$ = createFunction2('m', $1, $3);
  }
